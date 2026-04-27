@@ -61,3 +61,55 @@ Loading nuScenes v1.0-mini from /data/nuscenes …
 
 All file checks passed. Dataset looks healthy.
 ```
+
+---
+
+## Export nuScenes GT detections
+
+Extract ground-truth bounding-box annotations from a nuScenes scene into a
+per-frame JSON file under `results/gt/`.
+
+```bash
+python3 scripts/export_gt_detections.py \
+    --scene-index 0 \
+    --output results/gt/scene_0000.json
+```
+
+Validate the exported file:
+
+```bash
+python3 scripts/validate_gt_json.py --input results/gt/scene_0000.json
+```
+
+### Arguments (export)
+
+| Argument | Default | Description |
+|---|---|---|
+| `--dataroot` | `/workspace/data/nuscenes` | Root directory of the nuScenes dataset |
+| `--version` | `v1.0-mini` | Dataset version |
+| `--scene-index` | `0` | Index of the scene to export |
+| `--output` | `results/gt/scene_0000.json` | Output JSON path |
+
+### Output format
+
+The JSON file is a list of frame objects:
+
+```json
+[
+  {
+    "frame_id": 0,
+    "sample_token": "...",
+    "timestamp": 1532402927647951,
+    "detections": [
+      {
+        "instance_token": "...",
+        "category_name": "vehicle.car",
+        "translation": [x, y, z],
+        "size": [w, l, h],
+        "rotation": [w, x, y, z],
+        "yaw": 1.234
+      }
+    ]
+  }
+]
+```

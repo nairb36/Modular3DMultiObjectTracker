@@ -1,6 +1,10 @@
 build/
-results/*
-!results/.gitkeep
+results/**/*.json
+results/**/*.csv
+!results/gt/.gitkeep
+!results/tracking/.gitkeep
+!results/eval/.gitkeep
 *.o
 *.log
 .DS_Store
+__pycache__/
