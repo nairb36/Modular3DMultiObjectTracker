@@ -1,6 +1,6 @@
 # Project_MOT
 
-Multi-Object Tracking project using nuScenes data.
+3D Multi-Object Tracking project using nuScenes data.
 
 ---
 
