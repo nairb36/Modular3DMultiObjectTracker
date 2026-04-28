@@ -21,6 +21,7 @@ std::vector<Detection> GTDetector::detect(int frame_id)
         Detection detection;
         detection.instance_token = curr_detections[i]["instance_token"];
         detection.category_name = curr_detections[i]["category_name"];
+        detection.confidence = 1.0; // Ground truth
         auto t = curr_detections[i]["translation"];
         detection.position = Eigen::Vector3d(t[0], t[1], t[2]);
         auto s = curr_detections[i]["size"];
