@@ -15,17 +15,20 @@ class Tracker
 
     int next_id_;
     int curr_frame_id_;
+    int time_step_;
 
     // Detection
     std::unique_ptr<Detector> detector_;
-    std::vector<Detection> prev_frame_detections_;
     std::vector<Detection> curr_frame_detections_;
+    std::vector<Detection> curr_frame_matched_detections_;
+    std::vector<Detection> curr_frame_unmatched_detections_;
+
 
     public:
     Tracker();
 
     void tracker_step();
-    std::vector<Detection> get_detections();
+    void get_detections();
     void predict_tracks_state();
     void perform_association();
     void update_tracks_state();
