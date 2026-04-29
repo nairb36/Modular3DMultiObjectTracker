@@ -19,16 +19,16 @@ std::vector<Detection> GTDetector::detect(int frame_id)
     for (int i = 0; i < curr_detections.size(); i++)
     {
         Detection detection;
-        detection.instance_token = curr_detections[i]["instance_token"];
-        detection.category_name = curr_detections[i]["category_name"];
-        detection.confidence = 1.0; // Ground truth
+        detection.instance_token_ = curr_detections[i]["instance_token"];
+        detection.category_name_ = curr_detections[i]["category_name"];
+        detection.confidence_ = 1.0; // Ground truth
         auto t = curr_detections[i]["translation"];
-        detection.position = Eigen::Vector3d(t[0], t[1], t[2]);
+        detection.position_ = Eigen::Vector3d(t[0], t[1], t[2]);
         auto s = curr_detections[i]["size"];
-        detection.bbox_dims = Eigen::Vector3d(s[0], s[1], s[2]);
+        detection.bbox_dims_ = Eigen::Vector3d(s[0], s[1], s[2]);
         auto r = curr_detections[i]["rotation"];
-        detection.rotation_quaternion = Eigen::Vector4d(r[0], r[1], r[2], r[3]);
-        detection.yaw = curr_detections[i]["yaw"];
+        detection.rotation_quaternion_ = Eigen::Vector4d(r[0], r[1], r[2], r[3]);
+        detection.yaw_ = curr_detections[i]["yaw"];
 
         detections.push_back(detection);
     }
@@ -45,6 +45,6 @@ std::vector<Detection> GTDetector::detect(int frame_id)
 
 //     for (int i = 0; i < detections.size(); i++)
 //     {
-//         std::cout<<(i+1)<<". "<<detections[i].category_name<<std::endl;
+//         std::cout<<(i+1)<<". "<<detections[i].category_name_<<std::endl;
 //     }
 // }
