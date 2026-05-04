@@ -1,3 +1,24 @@
 // Concrete MotionModel: linear Kalman Filter with constant-velocity model.
 // State: [x, y, z, vx, vy, vz]. Measurement: [x, y, z].
 // Owns and initializes F, H, Q, R, P matrices.
+
+#include "motion_model.hpp"
+
+class LinearKF: public MotionModel
+{
+    private:
+    Eigen::VectorXd x_; // State
+    Eigen::MatrixXd P_; // State Covariance Matrix
+    Eigen::MatrixXd F_; // State Transition Matrix
+    Eigen::MatrixXd Q_; // System Noise Covariance
+    const Eigen::MatrixXd H_; // Observation Matrix
+    const Eigen::MatrixXd R_; // Measurement Noise Covariance Matrix
+
+    
+    public:
+    LinearKF();
+    Eigen::VectorXd get_position();
+    Eigen::MatrixXd get_covariance();
+    void predict(double dt);
+    void update(Eigen::VectorXd measurement);
+};

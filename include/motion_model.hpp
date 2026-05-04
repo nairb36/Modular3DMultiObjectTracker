@@ -8,10 +8,8 @@
 class MotionModel
 {
     private:
-    // State
-    Eigen::VectorXd x_;
-    // Covariance
-    Eigen::MatrixXd P_;
+    Eigen::VectorXd x_; // State
+    Eigen::MatrixXd P_; // Covariance
 
     public:
     virtual Eigen::VectorXd get_position() = 0;
