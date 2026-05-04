@@ -11,8 +11,8 @@ class LinearKF: public MotionModel
     Eigen::MatrixXd P_; // State Covariance Matrix
     Eigen::MatrixXd F_; // State Transition Matrix
     Eigen::MatrixXd Q_; // System Noise Covariance
-    const Eigen::MatrixXd H_; // Observation Matrix
-    const Eigen::MatrixXd R_; // Measurement Noise Covariance Matrix
+    Eigen::MatrixXd H_; // Observation Matrix
+    Eigen::MatrixXd R_; // Measurement Noise Covariance Matrix
 
     
     public:
