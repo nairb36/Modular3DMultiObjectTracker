@@ -53,3 +53,15 @@ void LinearKF::update(Eigen::VectorXd z)
     x_ = x_ + K*y;
     P_ = (I - K*H_)*P_;
 }
+
+
+Eigen::Vector3d LinearKF::get_position()
+{
+    return x_.head(3);
+}
+
+
+Eigen::MatrixXd LinearKF::get_covariance()
+{
+    return P_;
+}

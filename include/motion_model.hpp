@@ -12,7 +12,7 @@ class MotionModel
     Eigen::MatrixXd P_; // Covariance
 
     public:
-    virtual Eigen::VectorXd get_position() = 0;
+    virtual Eigen::Vector3d get_position() = 0;
     virtual Eigen::MatrixXd get_covariance() = 0;
     virtual void predict(double dt) = 0;
     virtual void update(Eigen::VectorXd measurement) = 0;
