@@ -55,16 +55,22 @@ double Tracker::get_timestamp()
 }
 
 
-// void Tracker::predict_tracks_state()
-// {
+void Tracker::predict_tracks_state(double dt)
+{
+    for (Track& track: tracks_)
+    {
+        track.motion_model_->predict(dt);
+    }
+}
 
-// }
 
-
-// void Tracker::perform_association()
-// {
-
-// }
+void Tracker::perform_association()
+{
+    // TODO Actual implementation
+    
+    // temp implementation
+    curr_frame_unmatched_detections_ = curr_frame_detections_;
+}
 
 
 // void Tracker::update_tracks_state()

@@ -33,7 +33,7 @@ class Tracker
     void tracker_step();
     void get_detections();
     double get_timestamp();
-    void predict_tracks_state();
+    void predict_tracks_state(double);
     void perform_association();
     void update_tracks_state();
     void create_new_tracks();
