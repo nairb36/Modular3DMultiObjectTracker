@@ -36,6 +36,13 @@ std::vector<Detection> GTDetector::detect(int frame_id)
     return detections;
 }
 
+double GTDetector::get_timestamp(int frame_id)
+{
+    json curr_frame_ = scene_data_[frame_id];
+    double curr_timestamp = curr_frame_["timestamp"]/1e6;
+    return curr_timestamp;
+}
+
 
 // int main()
 // {

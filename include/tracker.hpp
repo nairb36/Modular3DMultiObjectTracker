@@ -15,7 +15,7 @@ class Tracker
 
     int next_id_;
     int curr_frame_id_;
-    int time_step_;
+    double curr_timestamp_;
 
     // Detection
     std::unique_ptr<Detector> detector_;
@@ -29,6 +29,7 @@ class Tracker
 
     void tracker_step();
     void get_detections();
+    double get_timestamp();
     void predict_tracks_state();
     void perform_association();
     void update_tracks_state();

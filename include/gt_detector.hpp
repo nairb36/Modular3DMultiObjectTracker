@@ -14,6 +14,7 @@ class GTDetector : public Detector
     public:
     GTDetector(const std::string& json_path);
     std::vector<Detection> detect(int) override;
+    double get_timestamp(int) override;
 
     private:
     json scene_data_;

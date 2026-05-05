@@ -10,6 +10,7 @@ class Detector
 {   
     public:
     virtual std::vector<Detection> detect(int) = 0;
+    virtual double get_timestamp(int) = 0;
     virtual ~Detector() = default;
 
 };
