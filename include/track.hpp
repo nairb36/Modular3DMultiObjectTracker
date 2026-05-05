@@ -2,9 +2,9 @@
 // Owns a KalmanFilter for state estimation plus passive metadata (bbox dims, yaw).
 // Tracks lifecycle info: age, hits, consecutive misses, track ID.
 
+#include "motion_model.hpp"
 #include <string>
 #include <memory>
-#include <Eigen/Dense>
 
 struct Track
 {
@@ -18,4 +18,6 @@ struct Track
     // Optional Metadata
     Eigen::Vector3d bbox_dims_;
     double yaw_;
+
+    Track(int id, std::string category_name, std::unique_ptr<MotionModel> motion_model, Eigen::Vector3d bbox_dims, double yaw);
 };
