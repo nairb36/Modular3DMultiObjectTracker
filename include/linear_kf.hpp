@@ -16,7 +16,7 @@ class LinearKF: public MotionModel
 
     
     public:
-    LinearKF();
+    LinearKF(Eigen::Vector3d);
     Eigen::VectorXd get_position();
     Eigen::MatrixXd get_covariance();
     void predict(double dt);

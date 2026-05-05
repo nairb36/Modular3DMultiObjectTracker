@@ -4,12 +4,30 @@
 
 #include "linear_kf.hpp"
 
-LinearKF::LinearKF()
+LinearKF::LinearKF(Eigen::Vector3d position)
 {
-    x_.resize(6);
-    P_.resize(6,6);
-    F_.resize(6,6);
-    Q_.resize(6,6);
-    H_.resize(3,6);
-    R_.resize(3,3);
+    Eigen::VectorXd sigma_squared_state(6);
+    sigma_squared_state<< 100, 100, 100, 20, 20, 5; // sigma squared for x, y, z, vx, vy, vz
+
+    Eigen::VectorXd sigma_squared_measurement(3);
+    sigma_squared_measurement<< 4, 4, 4; // sigma squared for x, y, z
+
+    Eigen::VectorXd sigma_squared_process(6);
+    sigma_squared_process << 1, 1, 1, 1, 1, 1;
+
+    x_ = Eigen::VectorXd::Zero(6);
+    x_.head(3) = position;
+
+    P_ = sigma_squared_state.asDiagonal();
+
+    // Partially filling F matrix. 
+    // Only filling in the constant terms, the time dependednt terms will be filled in later
+    F_ = Eigen::MatrixXd::Identity(6, 6);
+    
+    Q_ = sigma_squared_process.asDiagonal();
+
+    H_ = Eigen::MatrixXd::Zero(3, 6);
+    H_.topLeftCorner(3, 3) = Eigen::Matrix3d::Identity();
+        
+    R_ = sigma_squared_measurement.asDiagonal();
 }
