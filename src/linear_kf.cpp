@@ -10,7 +10,7 @@ LinearKF::LinearKF(Eigen::Vector3d position)
     Eigen::VectorXd sigma_squared_state(6);
     sigma_squared_state<< 100, 100, 100, 20, 20, 5; // sigma squared for x, y, z, vx, vy, vz
     Eigen::VectorXd sigma_squared_measurement(3);
-    sigma_squared_measurement<< 4, 4, 4; // sigma squared for x, y, 
+    sigma_squared_measurement<< 4, 4, 4; // sigma squared for x, y, z
     Eigen::VectorXd sigma_squared_process(6);
     sigma_squared_process << 1, 1, 1, 1, 1, 1;
 
@@ -30,4 +30,26 @@ LinearKF::LinearKF(Eigen::Vector3d position)
     H_.topLeftCorner(3, 3) = Eigen::Matrix3d::Identity();
         
     R_ = sigma_squared_measurement.asDiagonal();
+}
+
+
+void LinearKF::predict(double dt)
+{
+    // Updating relevant parts of the F matrix that depend on dt
+    F_.topRightCorner(3,3) = dt*Eigen::Matrix3d::Identity(3,3);
+
+    x_ = F_*x_;
+    P_ = F_*P_*F_.transpose() + Q_;
+}
+
+
+void LinearKF::update(Eigen::VectorXd z)
+{
+    Eigen::VectorXd y = z - H_*x_;
+    Eigen::MatrixXd S = H_*P_*H_.transpose() + R_;
+    Eigen::MatrixXd K = P_*H_.transpose()*S.inverse();
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+
+    x_ = x_ + K*y;
+    P_ = (I - K*H_)*P_;
 }
