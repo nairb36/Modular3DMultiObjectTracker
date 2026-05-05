@@ -97,7 +97,17 @@ void Tracker::create_new_tracks()
 }
 
 
-// void Tracker::delete_old_tracks()
-// {
-
-// }
+void Tracker::delete_old_tracks()
+{
+    for (auto itr = tracks_.begin(); itr != tracks_.end(); )
+    {
+        if (itr->consecutive_misses_ > max_consecutive_track_misses_)
+        {
+            itr = tracks_.erase(itr); // Returns the next valid iterator
+        }
+        else
+        {
+            itr++; // Only increment if no deletion occurred
+        }
+    }
+}
