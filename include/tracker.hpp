@@ -33,5 +33,7 @@ class Tracker
     void predict_tracks_state();
     void perform_association();
     void update_tracks_state();
+    void create_new_tracks();
+    void delete_old_tracks();
 };
 
