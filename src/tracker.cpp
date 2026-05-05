@@ -4,11 +4,12 @@
 
 #include "tracker.hpp"
 
-Tracker::Tracker(): next_id_(0),
-                    curr_frame_id_(0),
-                    time_step_(0)
+Tracker::Tracker(std::unique_ptr<Detector> detector, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory): next_id_(0),
+                                                                                                                                         curr_frame_id_(0),
+                                                                                                                                         curr_timestamp_(0)
 {
-
+    detector_ = std::move(detector);
+    motion_model_factory_ = std::move(motion_model_factory);
 }
 
 
@@ -79,7 +80,7 @@ void Tracker::create_new_tracks()
         int id = next_id_;
         next_id_++;
         std::string category_name = unmatched_detection.category_name_;
-        std::unique_ptr<MotionModel> motion_model = std::make_unique<LinearKF>(unmatched_detection.position_);
+        std::unique_ptr<MotionModel> motion_model = motion_model_factory_(unmatched_detection.position_);
         Eigen::Vector3d bbox_dims = unmatched_detection.bbox_dims_;
         double yaw = unmatched_detection.yaw_;
 

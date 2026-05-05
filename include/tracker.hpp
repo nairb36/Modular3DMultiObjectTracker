@@ -6,6 +6,7 @@
 #include "detector.hpp"
 #include <vector>
 #include <memory>
+#include <functional>
 
 
 class Tracker
@@ -23,9 +24,11 @@ class Tracker
     std::vector<Detection> curr_frame_matched_detections_;
     std::vector<Detection> curr_frame_unmatched_detections_;
 
+    // Motion Model
+    std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory_;
 
     public:
-    Tracker();
+    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>);
 
     void tracker_step();
     void get_detections();
