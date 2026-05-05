@@ -43,7 +43,7 @@ void LinearKF::predict(double dt)
 }
 
 
-void LinearKF::update(Eigen::VectorXd z)
+void LinearKF::update(const Eigen::VectorXd& z)
 {
     Eigen::VectorXd y = z - H_*x_;
     Eigen::MatrixXd S = H_*P_*H_.transpose() + R_;
