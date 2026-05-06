@@ -33,6 +33,7 @@ int main()
     }
 
     Tracker mot_tracker(std::move(detector), std::move(motion_model_factory));
+    // TODO Figure out how to step from frame to frame for Nuscenes
     while (true)
     {
         mot_tracker.tracker_step();
