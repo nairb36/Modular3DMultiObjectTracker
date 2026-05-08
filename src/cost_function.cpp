@@ -1,2 +1,2 @@
-// Implementations of all cost functions: Euclidean, Mahalanobis, 3D IoU, weighted combos.
-// All concrete CostFunction subclasses live here together.
+// Implementation of weighted cost computation between a track and a detection.
+// Individual cost types (e.g. Euclidean, IoU) are computed and combined using configurable weights.

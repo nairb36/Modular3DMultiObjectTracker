@@ -21,7 +21,9 @@ void Tracker::tracker_step()
     // double dt = get_timestamp();
 
     // predict_tracks_state(); // does state prediction based on motion model for each Track in tracks_
+    
     // perform_association();  // Association step: keeps list of matched and unmatched detections
+    
     // update_tracks_state();  // Applies measurement update to matched tracks, leaves unmatched tracks as is
 
     // create_new_tracks(); // Create new tracks from unmatched detections
