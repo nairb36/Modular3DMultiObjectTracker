@@ -6,10 +6,14 @@
 #include "track.hpp"
 #include <vector>
 #include <string>
+#include <Eigen/Dense>
 
 class CostFunction
 {
     private:
+    // TODO take this value from config
+    double distance_gate_ = 5;
+
     std::vector<std::string> cost_types_;
     std::vector<double> cost_weights_;
     double distance_cost(const Detection&, const Track&);

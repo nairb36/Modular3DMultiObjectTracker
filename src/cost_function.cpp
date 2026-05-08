@@ -34,3 +34,38 @@ double CostFunction::compute_cost(const Detection& detection, const Track& track
 
     return total_cost;
 }
+
+
+double CostFunction::distance_cost(const Detection& detection, const Track& track)
+{
+    Eigen::Vector3d detection_position = detection.position_;
+    Eigen::Vector3d track_position = track.motion_model_->get_position();
+    Eigen::Vector3d distance_vector = track_position - detection_position;
+    double distance = distance_vector.norm();
+    return distance/distance_gate_;
+}
+
+
+// Axis-aligned 3D IoU — does not account for yaw rotation
+double CostFunction::iou_cost(const Detection& detection, const Track& track)
+{
+    Eigen::Vector3d det_pos = detection.position_;
+    Eigen::Vector3d det_dims = detection.bbox_dims_;
+    Eigen::Vector3d trk_pos = track.motion_model_->get_position();
+    Eigen::Vector3d trk_dims = track.bbox_dims_;
+
+    double overlap_x = std::max(0.0, std::min(det_pos(0) + det_dims(0)/2, trk_pos(0) + trk_dims(0)/2)
+                                    - std::max(det_pos(0) - det_dims(0)/2, trk_pos(0) - trk_dims(0)/2));
+    double overlap_y = std::max(0.0, std::min(det_pos(1) + det_dims(1)/2, trk_pos(1) + trk_dims(1)/2)
+                                    - std::max(det_pos(1) - det_dims(1)/2, trk_pos(1) - trk_dims(1)/2));
+    double overlap_z = std::max(0.0, std::min(det_pos(2) + det_dims(2)/2, trk_pos(2) + trk_dims(2)/2)
+                                    - std::max(det_pos(2) - det_dims(2)/2, trk_pos(2) - trk_dims(2)/2));
+
+    double intersection_vol = overlap_x * overlap_y * overlap_z;
+    double vol_det = det_dims(0) * det_dims(1) * det_dims(2);
+    double vol_trk = trk_dims(0) * trk_dims(1) * trk_dims(2);
+    double union_vol = vol_det + vol_trk - intersection_vol;
+
+    double iou = (union_vol > 0) ? intersection_vol / union_vol : 0;
+    return 1.0 - iou; // Higher IoU should lead to lower cost
+}
