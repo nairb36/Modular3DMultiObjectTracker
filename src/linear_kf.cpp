@@ -55,13 +55,13 @@ void LinearKF::update(const Eigen::VectorXd& z)
 }
 
 
-Eigen::Vector3d LinearKF::get_position()
+Eigen::Vector3d LinearKF::get_position() const
 {
     return x_.head(3);
 }
 
 
-Eigen::MatrixXd LinearKF::get_covariance()
+Eigen::MatrixXd LinearKF::get_covariance() const
 {
     return P_;
 }
