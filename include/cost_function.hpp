@@ -12,7 +12,7 @@ class CostFunction
 {
     private:
     // TODO take this value from config
-    double distance_gate_ = 5;
+    double kDistanceGate = 5;
 
     std::vector<std::string> cost_types_;
     std::vector<double> cost_weights_;

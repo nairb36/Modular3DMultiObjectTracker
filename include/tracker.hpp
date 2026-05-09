@@ -18,7 +18,7 @@ class Tracker
     int curr_frame_id_;
     double curr_timestamp_;
     // TODO take it in from config later
-    int max_consecutive_track_misses_ = 5;
+    int kMaxConsecutiveMisses = 5;
 
     // Detection
     std::unique_ptr<Detector> detector_;

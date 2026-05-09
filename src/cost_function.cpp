@@ -42,7 +42,7 @@ double CostFunction::distance_cost(const Detection& detection, const Track& trac
     Eigen::Vector3d track_position = track.motion_model_->get_position();
     Eigen::Vector3d distance_vector = track_position - detection_position;
     double distance = distance_vector.norm();
-    return distance/distance_gate_;
+    return distance/kDistanceGate; // Normalizing for distance cost
 }
 
 

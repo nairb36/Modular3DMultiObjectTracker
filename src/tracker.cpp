@@ -103,7 +103,7 @@ void Tracker::delete_old_tracks()
 {
     for (auto itr = tracks_.begin(); itr != tracks_.end(); )
     {
-        if (itr->consecutive_misses_ > max_consecutive_track_misses_)
+        if (itr->consecutive_misses_ > kMaxConsecutiveMisses)
         {
             itr = tracks_.erase(itr); // Returns the next valid iterator
         }
