@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <limits>
 
 
 class Tracker
@@ -32,8 +33,6 @@ class Tracker
     std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory_;
 
     // Cost Function
-    // std::vector<std::string> cost_types_;
-    // std::vector<double> cost_weights_;
     CostFunction cost_function_;
 
     public:

@@ -75,8 +75,28 @@ void Tracker::perform_association()
 {
     // TODO Actual implementation
     
-    // temp implementation
-    curr_frame_unmatched_detections_ = curr_frame_detections_;
+    // // temp implementation
+    // curr_frame_unmatched_detections_ = curr_frame_detections_;
+
+    int curr_num_tracks = tracks_.size();
+    int curr_num_detections = curr_frame_detections_.size();
+    std::vector<std::vector<double>> cost_matrix(curr_num_tracks, std::vector<double>(curr_num_detections, std::numeric_limits<double>::infinity()));
+
+    for (int i = 0; i < curr_num_tracks; i++)
+    {
+        for (int j = 0; j < curr_num_detections; j++)
+        {
+            //TODO Apply gating
+                // check_all_gating() 
+                // Dont compute pairwise costs if certain criteria is not met
+                // eg: dont compute pairwise cost if:
+                                                    // class labels are different
+                                                    // boxes are too far apart ..
+            
+            cost_matrix[i][j] = cost_function_.compute_cost(tracks_[i], curr_frame_detections_[j]);
+        }
+    }
+
 }
 
 
