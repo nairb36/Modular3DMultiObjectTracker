@@ -28,7 +28,7 @@ void Tracker::tracker_step()
     
     get_detections(); // fills in curr_frame_detections_
 
-    predict_tracks_state(); // does state prediction based on motion model for each Track in tracks_
+    predict_tracks_state(dt); // does state prediction based on motion model for each Track in tracks_
     
     perform_association();  // Association step: keeps list of matched and unmatched detections
     
