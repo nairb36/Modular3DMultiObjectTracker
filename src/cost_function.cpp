@@ -67,5 +67,5 @@ double CostFunction::iou_cost(const Track& track, const Detection& detection)
     double union_vol = vol_det + vol_trk - intersection_vol;
 
     double iou = (union_vol > 0) ? intersection_vol / union_vol : 0;
-    return 1.0 - iou; // Higher IoU should lead to lower cost
+    return std::max(0.0, 1.0 - iou); // Higher IoU should lead to lower cost
 }

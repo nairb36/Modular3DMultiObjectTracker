@@ -39,19 +39,7 @@ std::vector<Detection> GTDetector::detect(int frame_id)
 double GTDetector::get_timestamp(int frame_id)
 {
     json curr_frame_ = scene_data_[frame_id];
-    double curr_timestamp = curr_frame_["timestamp"]/1e6;
+    double curr_timestamp = curr_frame_["timestamp"].get<double>()/1e6;
     return curr_timestamp;
 }
 
-
-// int main()
-// {
-//     std::unique_ptr<Detector> d = std::make_unique<GTDetector>("../results/gt/scene_0000.json");
-//     std::vector<Detection> detections = d->detect(0);
-//     std::cout<<"**************";
-
-//     for (int i = 0; i < detections.size(); i++)
-//     {
-//         std::cout<<(i+1)<<". "<<detections[i].category_name_<<std::endl;
-//     }
-// }

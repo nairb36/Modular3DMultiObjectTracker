@@ -8,7 +8,7 @@ void Associator::build_cost_matrix(const std::vector<Track>& tracks, const std::
     int curr_num_tracks = tracks.size();
     int curr_num_detections = detections.size();
     cost_matrix_ = std::vector<std::vector<double>>(curr_num_tracks,
-                                                    std::vector<double>(curr_num_detections, std::numeric_limits<double>::infinity()));
+                                                    std::vector<double>(curr_num_detections, std::numeric_limits<double>::max()));
 
     for (int i = 0; i < curr_num_tracks; i++)
     {
