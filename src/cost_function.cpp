@@ -10,7 +10,7 @@ CostFunction::CostFunction(const std::vector<std::string>& cost_types, const std
 }
 
 
-double CostFunction::compute_cost(const Detection& detection, const Track& track)
+double CostFunction::compute_cost(const Track& track, const Detection& detection)
 {
     double total_cost = 0;
 
@@ -22,11 +22,11 @@ double CostFunction::compute_cost(const Detection& detection, const Track& track
 
         if (cost_type == "distance")
         {
-            cost = distance_cost(detection, track);
+            cost = distance_cost(track, detection);
         }
         else if (cost_type == "iou")
         {
-            cost = iou_cost(detection, track);
+            cost = iou_cost(track, detection);
         }
 
         total_cost += weight*cost;
@@ -36,7 +36,7 @@ double CostFunction::compute_cost(const Detection& detection, const Track& track
 }
 
 
-double CostFunction::distance_cost(const Detection& detection, const Track& track)
+double CostFunction::distance_cost(const Track& track, const Detection& detection)
 {
     Eigen::Vector3d detection_position = detection.position_;
     Eigen::Vector3d track_position = track.motion_model_->get_position();
@@ -47,7 +47,7 @@ double CostFunction::distance_cost(const Detection& detection, const Track& trac
 
 
 // Axis-aligned 3D IoU — does not account for yaw rotation
-double CostFunction::iou_cost(const Detection& detection, const Track& track)
+double CostFunction::iou_cost(const Track& track, const Detection& detection)
 {
     Eigen::Vector3d det_pos = detection.position_;
     Eigen::Vector3d det_dims = detection.bbox_dims_;

@@ -4,6 +4,7 @@
 
 #include "track.hpp"
 #include "detector.hpp"
+#include "cost_function.hpp"
 #include <vector>
 #include <string>
 #include <memory>
@@ -31,8 +32,9 @@ class Tracker
     std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory_;
 
     // Cost Function
-    std::vector<std::string> cost_types_;
-    std::vector<double> cost_weights_;
+    // std::vector<std::string> cost_types_;
+    // std::vector<double> cost_weights_;
+    CostFunction cost_function_;
 
     public:
     Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const std::vector<std::string>&, const std::vector<double>&);

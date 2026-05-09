@@ -16,10 +16,10 @@ class CostFunction
 
     std::vector<std::string> cost_types_;
     std::vector<double> cost_weights_;
-    double distance_cost(const Detection&, const Track&);
-    double iou_cost(const Detection&, const Track&);
+    double distance_cost(const Track&, const Detection&);
+    double iou_cost(const Track&, const Detection&);
 
     public:
     CostFunction(const std::vector<std::string>&, const std::vector<double>&);
-    double compute_cost(const Detection&, const Track&);
+    double compute_cost(const Track&, const Detection&);
 };
