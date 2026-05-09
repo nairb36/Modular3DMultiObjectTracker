@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <vector>
 
 int main()
 {
@@ -15,6 +16,8 @@ int main()
     std::string scene_path = "../results/gt/scene_0000.json";
     std::string detector_type = "GT";
     std::string motion_model_type = "ConstVelocity";
+    std::vector<std::string> cost_types = {"distance", "iou"};
+    std::vector<double> cost_weights = {0.5, 0.5};
 
     std::unique_ptr<Detector> detector;
     std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory;
@@ -32,7 +35,7 @@ int main()
         };
     }
 
-    Tracker mot_tracker(std::move(detector), std::move(motion_model_factory));
+    Tracker mot_tracker(std::move(detector), std::move(motion_model_factory), cost_types, cost_weights);
     // TODO Figure out how to step from frame to frame for Nuscenes
     while (true)
     {
