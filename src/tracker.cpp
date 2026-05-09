@@ -4,7 +4,7 @@
 
 #include "tracker.hpp"
 
-Tracker::Tracker(std::unique_ptr<Detector> detector, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory, std::vector<std::string>& cost_types, std::vector<double>& cost_weights): next_id_(0),
+Tracker::Tracker(std::unique_ptr<Detector> detector, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory, const std::vector<std::string>& cost_types, const std::vector<double>& cost_weights): next_id_(0),
                                                                                                                                          curr_frame_id_(0),
                                                                                                                                          curr_timestamp_(0)
 {

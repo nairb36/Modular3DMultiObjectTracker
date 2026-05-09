@@ -35,7 +35,7 @@ class Tracker
     std::vector<double> cost_weights_;
 
     public:
-    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, std::vector<std::string>& , std::vector<double>&);
+    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const std::vector<std::string>&, const std::vector<double>&);
 
     void tracker_step();
     void get_detections();
