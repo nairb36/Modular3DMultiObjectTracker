@@ -76,7 +76,7 @@ void Tracker::perform_association()
 {
     // TODO Actual implementation
     // Builds cost matrix after performing gating
-    associator_->build_cost_matrix(tracks_, curr_frame_detections_);
+    associator_->build_cost_matrix(tracks_, curr_frame_detections_, cost_function_);
 
 
 
