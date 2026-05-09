@@ -16,6 +16,7 @@ void Associator::build_cost_matrix(const std::vector<Track>& tracks, const std::
         {
             if (apply_gating_rules(tracks[i], detections[j]))
             {
+                // Only compute pairwise cost when gating checks have passed, keep at infinity otherwise
                 cost_matrix_[i][j] = cost_function_.compute_cost(tracks[i], detections[j]);
             }
         }
