@@ -2,6 +2,8 @@
 // Owns a KalmanFilter for state estimation plus passive metadata (bbox dims, yaw).
 // Tracks lifecycle info: age, hits, consecutive misses, track ID.
 
+#pragma once
+
 #include "motion_model.hpp"
 #include <string>
 #include <memory>

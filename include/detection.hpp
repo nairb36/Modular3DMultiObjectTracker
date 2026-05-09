@@ -2,6 +2,8 @@
 // Holds position (x, y, z), bounding box dimensions (l, w, h), yaw, and confidence.
 // Pure data struct — no behavior.
 
+#pragma once
+
 #include <Eigen/Dense>
 #include <string>
 #include <vector>

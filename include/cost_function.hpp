@@ -2,6 +2,8 @@
 // Supports a configurable mix of cost types (e.g. Euclidean distance, IoU)
 // with per-type weights. Tracker calls compute_cost() without knowing the internals.
 
+#pragma once
+
 #include "detection.hpp"
 #include "track.hpp"
 #include <vector>
