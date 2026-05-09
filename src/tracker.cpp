@@ -21,6 +21,8 @@ Tracker::Tracker(std::unique_ptr<Detector> detector,
 
 void Tracker::tracker_step()
 {
+
+    // reset_per_frame_state(); // resets member variables for current timestep
     
     // get_detections(); // fills in curr_frame_detections_
 
@@ -37,6 +39,14 @@ void Tracker::tracker_step()
     // delete_old_tracks(); // Delete tracks exceeding consecutive miss threshold
 
     curr_frame_id_++;
+}
+
+
+void Tracker::reset_per_frame_state()
+{
+    curr_frame_matched_detections_.clear();
+    curr_frame_unmatched_detections_.clear();
+    tracks_to_detections_map_.clear();
 }
 
 
@@ -74,12 +84,35 @@ void Tracker::predict_tracks_state(double dt)
 
 void Tracker::perform_association()
 {
-    // TODO Actual implementation
     // Builds cost matrix after performing gating
     associator_->build_cost_matrix(tracks_, curr_frame_detections_, cost_function_);
+    // Bipartite Matching between tracks and detections
+    associator_->perform_bipartite_matching();
+    std::vector<int> track_assignment_list = associator_->get_assignment_list(); // vector containing matching detection index for each track. -1 for no match.
 
+    std::unordered_set<int> matched_detections_indices_set;
+    std::unordered_set<int> unmatched_detections_indices_set;
 
+    for (int i = 0; i < track_assignment_list.size(); i++)
+    {
+        if (track_assignment_list[i] >= 0)
+        {
+            // Detections matched to existing tracks
+            matched_detections_indices_set.insert(track_assignment_list[i]);
+            curr_frame_matched_detections_.push_back(curr_frame_detections_[track_assignment_list[i]]);
+            tracks_to_detections_map_.insert(std::pair<int, int> {i, track_assignment_list[i]});
+        }
+    }
 
+    for (int i = 0; i < curr_frame_detections_.size(); i++)
+    {
+        if (matched_detections_indices_set.find(i) == matched_detections_indices_set.end())
+        {
+            // Unmatched detections
+            unmatched_detections_indices_set.insert(i);
+            curr_frame_unmatched_detections_.push_back(curr_frame_detections_[i]);
+        }
+    }
 }
 
 

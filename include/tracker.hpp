@@ -10,6 +10,8 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 
 class Tracker
@@ -37,11 +39,13 @@ class Tracker
 
     // Associator
     std::unique_ptr<Associator> associator_;
+    std::unordered_map<int, int> tracks_to_detections_map_;
 
     public:
     Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const std::vector<std::string>&, const std::vector<double>&);
 
     void tracker_step();
+    void reset_per_frame_state();
     void get_detections();
     double get_timestamp();
     void predict_tracks_state(double);
