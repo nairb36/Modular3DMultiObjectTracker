@@ -19,29 +19,30 @@ Tracker::Tracker(std::unique_ptr<Detector> detector,
 }
 
 
+// Runs the full tracking pipeline for one frame
 void Tracker::tracker_step()
 {
+    reset_per_frame_state(); // resets member variables for current timestep
 
-    // reset_per_frame_state(); // resets member variables for current timestep
+    double dt = get_timestamp();
     
-    // get_detections(); // fills in curr_frame_detections_
+    get_detections(); // fills in curr_frame_detections_
 
-    // double dt = get_timestamp();
-
-    // predict_tracks_state(); // does state prediction based on motion model for each Track in tracks_
+    predict_tracks_state(); // does state prediction based on motion model for each Track in tracks_
     
-    // perform_association();  // Association step: keeps list of matched and unmatched detections
+    perform_association();  // Association step: keeps list of matched and unmatched detections
     
-    // update_tracks_state();  // Applies measurement update to matched tracks, leaves unmatched tracks as is
+    update_tracks_state();  // Applies measurement update to matched tracks, leaves unmatched tracks as is
 
-    // create_new_tracks(); // Create new tracks from unmatched detections
+    create_new_tracks(); // Create new tracks from unmatched detections
 
-    // delete_old_tracks(); // Delete tracks exceeding consecutive miss threshold
+    delete_old_tracks(); // Delete tracks exceeding consecutive miss threshold
 
     curr_frame_id_++;
 }
 
 
+// Clears per-frame containers before processing a new timestep
 void Tracker::reset_per_frame_state()
 {
     curr_frame_matched_detections_.clear();
@@ -50,12 +51,14 @@ void Tracker::reset_per_frame_state()
 }
 
 
+// Fetches detections for the current frame from the detector
 void Tracker::get_detections()
 {
     curr_frame_detections_ = detector_->detect(curr_frame_id_);
 }
 
 
+// Computes dt between current and previous frame timestamps
 double Tracker::get_timestamp()
 {
     if (curr_frame_id_ == 0)
@@ -73,15 +76,17 @@ double Tracker::get_timestamp()
 }
 
 
+// Propagates each track's state forward using its motion model
 void Tracker::predict_tracks_state(double dt)
 {
     for (Track& track: tracks_)
     {
-        track.motion_model_->predict(dt);
+        track.motion_model_->predict(dt); // State prediction based on motion model
     }
 }
 
 
+// Matches tracks to detections via cost matrix + Hungarian, populates matched/unmatched lists
 void Tracker::perform_association()
 {
     // Builds cost matrix after performing gating
@@ -116,6 +121,7 @@ void Tracker::perform_association()
 }
 
 
+// Applies measurement update to matched tracks, increments misses for unmatched
 void Tracker::update_tracks_state()
 {
     for (int i = 0; i < tracks_.size(); i++)
@@ -124,7 +130,7 @@ void Tracker::update_tracks_state()
         {
             // Current track is associated with a detection in the current frame
             Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
-            tracks_[i].motion_model_->update(corresponding_detection.position_);
+            tracks_[i].motion_model_->update(corresponding_detection.position_); // Measurement update for state estimation
             tracks_[i].consecutive_misses_ = 0;
             tracks_[i].hits_++;
             tracks_[i].age_++;
@@ -139,6 +145,7 @@ void Tracker::update_tracks_state()
 }
 
 
+// Initializes new tracks from detections that were not matched to any existing track
 void Tracker::create_new_tracks()
 {
     for (const auto& unmatched_detection: curr_frame_unmatched_detections_)
@@ -157,6 +164,7 @@ void Tracker::create_new_tracks()
 }
 
 
+// Removes tracks that have exceeded the maximum allowed consecutive misses
 void Tracker::delete_old_tracks()
 {
     for (auto itr = tracks_.begin(); itr != tracks_.end(); )
