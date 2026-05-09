@@ -5,11 +5,11 @@
 #include "track.hpp"
 #include "detector.hpp"
 #include "cost_function.hpp"
+#include "associator.hpp"
 #include <vector>
 #include <string>
 #include <memory>
 #include <functional>
-#include <limits>
 
 
 class Tracker
@@ -34,6 +34,9 @@ class Tracker
 
     // Cost Function
     CostFunction cost_function_;
+
+    // Associator
+    std::unique_ptr<Associator> associator_;
 
     public:
     Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const std::vector<std::string>&, const std::vector<double>&);
