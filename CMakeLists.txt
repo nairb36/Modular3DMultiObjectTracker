@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Eigen3 REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-include_directories(include)
+include_directories(include third_party/hungarian-algorithm-cpp)
 
 add_executable(mot_tracker
     src/main.cpp
@@ -16,6 +16,7 @@ add_executable(mot_tracker
     src/linear_kf.cpp
     src/track.cpp
     src/cost_function.cpp
+    third_party/hungarian-algorithm-cpp/Hungarian.cpp
 )
 
 target_link_libraries(mot_tracker
