@@ -116,10 +116,27 @@ void Tracker::perform_association()
 }
 
 
-// void Tracker::update_tracks_state()
-// {
-
-// }
+void Tracker::update_tracks_state()
+{
+    for (int i = 0; i < tracks_.size(); i++)
+    {
+        if (tracks_to_detections_map_.find(i) != tracks_to_detections_map_.end())
+        {
+            // Current track is associated with a detection in the current frame
+            Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
+            tracks_[i].motion_model_->update(corresponding_detection.position_);
+            tracks_[i].consecutive_misses_ = 0;
+            tracks_[i].hits_++;
+            tracks_[i].age_++;
+        }
+        else
+        {
+            // Current track is NOT associated with a detection in the current frame
+            tracks_[i].consecutive_misses_++;
+            tracks_[i].age_++;
+        }
+    }
+}
 
 
 void Tracker::create_new_tracks()
