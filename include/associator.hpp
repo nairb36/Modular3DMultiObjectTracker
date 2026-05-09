@@ -14,6 +14,7 @@ class Associator
     Associator() = default;
     void build_cost_matrix(const std::vector<Track>&, const std::vector<Detection>&, CostFunction&);
     void perform_bipartite_matching();
+    std::vector<int> get_assignment_list();
 
 
     private:

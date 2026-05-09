@@ -34,3 +34,9 @@ void Associator::perform_bipartite_matching()
 {
     double assignment_cost = hungarian_algorithm_.Solve(cost_matrix_, assignments_);
 }
+
+
+std::vector<int> Associator::get_assignment_list()
+{
+    return assignments_;
+}
