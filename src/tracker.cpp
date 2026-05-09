@@ -23,20 +23,28 @@ Tracker::Tracker(std::unique_ptr<Detector> detector,
 void Tracker::tracker_step()
 {
     reset_per_frame_state(); // resets member variables for current timestep
+    std::cout<<"Completed reset_per_frame_state"<<std::endl;
 
     double dt = get_timestamp();
+    std::cout<<"Completed get_timestamp"<<std::endl;
     
     get_detections(); // fills in curr_frame_detections_
+    std::cout<<"Completed get_detections"<<std::endl;
 
     predict_tracks_state(dt); // does state prediction based on motion model for each Track in tracks_
+    std::cout<<"Completed predict_tracks_state"<<std::endl;
     
     perform_association();  // Association step: keeps list of matched and unmatched detections
-    
+    std::cout<<"Completed perform_association"<<std::endl;
+
     update_tracks_state();  // Applies measurement update to matched tracks, leaves unmatched tracks as is
+    std::cout<<"Completed update_tracks_state"<<std::endl;
 
     create_new_tracks(); // Create new tracks from unmatched detections
+    std::cout<<"Completed create_new_tracks"<<std::endl;
 
     delete_old_tracks(); // Delete tracks exceeding consecutive miss threshold
+    std::cout<<"Completed delete_old_tracks"<<std::endl;
 
     curr_frame_id_++;
 }
@@ -88,7 +96,18 @@ void Tracker::predict_tracks_state(double dt)
 
 // Matches tracks to detections via cost matrix + Hungarian, populates matched/unmatched lists
 void Tracker::perform_association()
-{
+{   
+    if (tracks_.empty())
+    {
+        curr_frame_unmatched_detections_ = curr_frame_detections_;
+        return;
+    }
+
+    if (curr_frame_detections_.empty())
+    {
+        return;
+    }
+
     // Builds cost matrix after performing gating
     associator_->build_cost_matrix(tracks_, curr_frame_detections_, cost_function_);
     // Bipartite Matching between tracks and detections
