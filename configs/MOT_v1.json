@@ -1,0 +1,23 @@
+{
+    "data": {
+        "scene_path": "../results/gt/scene_0000.json"
+    },
+
+    "detector": {
+        "type": "GT"
+    },
+
+    "motion_model": {
+        "type": "ConstVelocity"
+    },
+
+    "cost_function": {
+        "types": ["distance", "iou"],
+        "weights": [0.5, 0.5],
+        "distance_gate": 5.0
+    },
+
+    "track_management": {
+        "max_consecutive_misses": 5
+    }
+}
