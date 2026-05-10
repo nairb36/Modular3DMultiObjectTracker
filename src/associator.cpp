@@ -30,10 +30,16 @@ void Associator::build_cost_matrix(const std::vector<Track>& tracks, const std::
 
 bool Associator::apply_gating_rules(const Track& track, const Detection& detection)
 {
-    // TODO write actual implementation of gating logic
-    
     // Gate 1: track and detection belong to the same category?
     if (track.category_name_ != detection.category_name_)
+    {
+        return false;
+    }
+
+    // Gate 2: are tracks and detections very far apart? (beyond physical limits)
+    Eigen::Vector3d diff_vector = track.motion_model_->get_position() - detection.position_;
+    double distance = diff_vector.norm();
+    if (distance > kDistanceGate)
     {
         return false;
     }
