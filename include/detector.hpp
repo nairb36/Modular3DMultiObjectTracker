@@ -5,7 +5,12 @@
 #pragma once
 
 #include "detection.hpp"
+#include <string>
 
+struct DetectorConfig
+{
+    std::string type;
+};
 
 /// @brief Abstract base class for detection sources; subclass per sensor/input type
 class Detector

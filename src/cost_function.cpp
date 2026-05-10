@@ -3,8 +3,9 @@
 
 #include "cost_function.hpp"
 
-CostFunction::CostFunction(const std::vector<std::string>& cost_types, const std::vector<double>& cost_weights): cost_types_(cost_types),
-                                                                                                                 cost_weights_(cost_weights)
+CostFunction::CostFunction(const CostFunctionConfig& config): cost_types_(config.cost_types),
+                                                              cost_weights_(config.cost_weights),
+                                                              kDistanceGate(config.distance_gate)
 {
 
 }

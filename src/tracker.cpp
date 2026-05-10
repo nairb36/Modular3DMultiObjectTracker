@@ -4,16 +4,16 @@
 
 #include "tracker.hpp"
 
-Tracker::Tracker(std::unique_ptr<Detector> detector, 
-                 std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory, 
-                 const std::vector<std::string>& cost_types, 
-                 const std::vector<double>& cost_weights): next_id_(0),
-                                                           curr_frame_id_(0),
-                                                           curr_timestamp_(0),
-                                                           detector_(std::move(detector)),
-                                                           motion_model_factory_(std::move(motion_model_factory)),
-                                                           cost_function_(CostFunction(cost_types, cost_weights)),
-                                                           associator_(std::make_unique<Associator>())
+Tracker::Tracker(std::unique_ptr<Detector> detector,
+                 std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory,
+                 const TrackerConfig& config): next_id_(0),
+                                               curr_frame_id_(0),
+                                               curr_timestamp_(0),
+                                               kMaxConsecutiveMisses(config.max_consecutive_misses),
+                                               detector_(std::move(detector)),
+                                               motion_model_factory_(std::move(motion_model_factory)),
+                                               cost_function_(config.cost_function_config),
+                                               associator_(std::make_unique<Associator>(config.associator_config))
 {
 
 }

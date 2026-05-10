@@ -5,6 +5,12 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <string>
+
+struct MotionModelConfig
+{
+    std::string type;
+};
 
 class MotionModel
 {

@@ -15,17 +15,24 @@
 #include <unordered_map>
 #include <unordered_set>
 
+struct TrackerConfig
+{
+    DetectorConfig detector_config;
+    MotionModelConfig motion_model_config;
+    CostFunctionConfig cost_function_config;
+    AssociatorConfig associator_config;
+    int max_consecutive_misses = 5;
+};
 
 class Tracker
 {
     private:
-    std::vector<Track> tracks_; // Vector storing all the active tracks
+    std::vector<Track> tracks_;
 
     int next_id_;
     int curr_frame_id_;
     double curr_timestamp_;
-    // TODO take it in from config later
-    int kMaxConsecutiveMisses = 5;
+    int kMaxConsecutiveMisses;
 
     // Detection
     std::unique_ptr<Detector> detector_;
@@ -44,7 +51,7 @@ class Tracker
     std::unordered_map<int, int> tracks_to_detections_map_;
 
     public:
-    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const std::vector<std::string>&, const std::vector<double>&);
+    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
 
     void tracker_step();
     void reset_per_frame_state();

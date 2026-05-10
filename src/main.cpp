@@ -20,23 +20,26 @@ int main()
     nlohmann::json config = nlohmann::json::parse(config_file);
 
     std::string scene_path = config["data"]["scene_path"];
-    std::string detector_type = config["detector"]["type"];
-    std::string motion_model_type = config["motion_model"]["type"];
-    std::vector<std::string> cost_types = config["cost_function"]["types"].get<std::vector<std::string>>();
-    std::vector<double> cost_weights = config["cost_function"]["weights"].get<std::vector<double>>();
-    double distance_gate = config["cost_function"]["distance_gate"];
-    int max_consecutive_misses = config["track_management"]["max_consecutive_misses"];
+
+    TrackerConfig tracker_config;
+    tracker_config.detector_config.type = config["detector"]["type"].get<std::string>();
+    tracker_config.motion_model_config.type = config["motion_model"]["type"].get<std::string>();
+    tracker_config.cost_function_config.cost_types = config["cost_function"]["types"].get<std::vector<std::string>>();
+    tracker_config.cost_function_config.cost_weights = config["cost_function"]["weights"].get<std::vector<double>>();
+    tracker_config.cost_function_config.distance_gate = config["cost_function"]["distance_gate"].get<double>();
+    tracker_config.associator_config.distance_gate = config["associator"]["distance_gate"].get<double>();
+    tracker_config.max_consecutive_misses = config["track_management"]["max_consecutive_misses"].get<int>();
 
     // Detector and motion model setup
     std::unique_ptr<Detector> detector;
     std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory;
 
-    if (detector_type == "GT")
+    if (tracker_config.detector_config.type == "GT")
     {
         detector = std::make_unique<GTDetector>(scene_path);
     }
 
-    if (motion_model_type == "ConstVelocity")
+    if (tracker_config.motion_model_config.type == "ConstVelocity")
     {
         motion_model_factory = [](Eigen::Vector3d position)
         {
@@ -50,7 +53,7 @@ int main()
     int num_frames = scene_json.size();
 
     // Run tracker over all frames
-    Tracker mot_tracker(std::move(detector), std::move(motion_model_factory), cost_types, cost_weights);
+    Tracker mot_tracker(std::move(detector), std::move(motion_model_factory), tracker_config);
     for (int i = 0; i < num_frames; i++)
     {
         std::cout<<"Frame: "<<i<<std::endl;

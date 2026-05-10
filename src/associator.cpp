@@ -3,6 +3,11 @@
 
 #include "associator.hpp"
 
+Associator::Associator(const AssociatorConfig& config): kDistanceGate(config.distance_gate)
+{
+
+}
+
 void Associator::build_cost_matrix(const std::vector<Track>& tracks, const std::vector<Detection>& detections, CostFunction& cost_function)
 {
     int curr_num_tracks = tracks.size();

@@ -10,11 +10,17 @@
 #include <string>
 #include <Eigen/Dense>
 
+struct CostFunctionConfig
+{
+    std::vector<std::string> cost_types;
+    std::vector<double> cost_weights;
+    double distance_gate = 5.0;
+};
+
 class CostFunction
 {
     private:
-    // TODO take this value from config
-    double kDistanceGate = 5;
+    double kDistanceGate;
 
     std::vector<std::string> cost_types_;
     std::vector<double> cost_weights_;
@@ -22,6 +28,6 @@ class CostFunction
     double iou_cost(const Track&, const Detection&);
 
     public:
-    CostFunction(const std::vector<std::string>&, const std::vector<double>&);
+    CostFunction(const CostFunctionConfig&);
     double compute_cost(const Track&, const Detection&);
 };
