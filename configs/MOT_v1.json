@@ -17,6 +17,10 @@
         "distance_gate": 5.0
     },
 
+    "associator": {
+        "distance_gate": 5.0
+    },
+
     "track_management": {
         "max_consecutive_misses": 5
     }
