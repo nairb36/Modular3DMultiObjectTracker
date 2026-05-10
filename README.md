@@ -1,13 +1,164 @@
-# Project_MOT
+# 3D Multi-Object Tracking (MOT) Pipeline
 
-3D Multi-Object Tracking project using nuScenes data.
+A modular, config-driven 3D multi-object tracking system built in C++. Inspired by [SORT](https://arxiv.org/abs/1602.00763) and [AB3DMOT](https://arxiv.org/abs/2008.08063), this pipeline tracks objects across sequential frames using prediction, association, and track lifecycle management.
+
+Designed from the ground up for **extensibility** — new detectors, motion models, cost functions, and gating strategies can be integrated without modifying the core tracker logic.
 
 ---
 
-## nuScenes sanity check
+## Architecture
 
-Run the script below to verify that the nuScenes dataset is correctly mounted
-and that all expected files are accessible:
+The system follows a clean separation of concerns, with each component encapsulated in its own module behind a well-defined interface. The **Tracker** orchestrates a per-frame pipeline without knowing the internals of any component it drives.
+
+### Per-Frame Pipeline
+
+```
+Frame N
+  │
+  ├── 1. Detect          ──  Fetch detections from the current frame
+  ├── 2. Predict         ──  Propagate each track's state forward by dt
+  ├── 3. Associate       ──  Match tracks to detections (cost matrix + Hungarian)
+  ├── 4. Update          ──  Apply measurement update to matched tracks
+  ├── 5. Create          ──  Initialize new tracks from unmatched detections
+  └── 6. Delete          ──  Remove tracks exceeding consecutive miss threshold
+```
+
+### Module Overview
+
+| Module | Responsibility |
+|---|---|
+| **Tracker** | Orchestrates the full per-frame pipeline. Owns all active tracks and delegates to each component. |
+| **Detector** | Abstract interface for producing detections. Decouples the tracker from the data source. |
+| **MotionModel** | Abstract interface for state estimation. Provides `predict()` and `update()` without exposing filter internals. |
+| **CostFunction** | Computes a weighted combination of configurable cost metrics between a track and a detection. |
+| **Associator** | Builds the cost matrix, applies gating rules, and solves the assignment problem via the Hungarian algorithm. |
+| **Track** | Data structure representing a tracked object's identity, state, and lifecycle metadata. |
+| **Detection** | Data structure representing a single detection: position, bounding box dimensions, yaw, and category. |
+
+---
+
+## Design Principles
+
+### Pluggable Components via Abstract Interfaces
+
+The **Detector** and **MotionModel** are defined as abstract base classes. Concrete implementations inherit from these interfaces and are injected into the Tracker at construction time. This means:
+
+- Swapping ground-truth detections for a LiDAR detector requires **zero changes** to the Tracker or any other module.
+- Replacing the Kalman Filter with an Unscented Kalman Filter or a learned motion model only requires implementing the `MotionModel` interface.
+
+The Tracker uses a **factory pattern** for motion models — a callable that produces a new `MotionModel` instance given an initial position. This allows each track to own its own independent filter state.
+
+### Modular Cost and Association
+
+The cost function supports an arbitrary mix of cost types (e.g., Euclidean distance, 3D IoU), each with configurable weights. New cost metrics can be added by implementing a single method and registering the name — no changes to the Tracker, Associator, or any other module.
+
+Gating logic lives in the Associator, separate from cost computation. Gating determines **eligibility** (should these two even be compared?), while the cost function determines **similarity** (how well do they match?). This separation keeps both components focused and independently extensible.
+
+### Config-Driven Workflow
+
+All tunable parameters are externalized to a JSON configuration file. The tracker binary reads its entire setup from config at startup — no recompilation needed to experiment with different parameter sets.
+
+**Configurable parameters include:**
+- Detector type and data source
+- Motion model type
+- Cost function types and their relative weights
+- Distance gate for cost normalization
+- Association gating thresholds
+- Track deletion policy (max consecutive misses)
+
+Each component defines its own **config struct** with sensible defaults. The top-level `TrackerConfig` composes all sub-configs, providing a single entry point for configuration while maintaining clear ownership of parameters.
+
+---
+
+## v1 Features
+
+### Detection
+- **Ground-truth 3D detections** loaded from nuScenes-format JSON scene files
+- Supports position, bounding box dimensions (L x W x H), yaw, and category labels
+
+### Motion Model
+- **Constant-velocity linear Kalman Filter**
+- 6D state vector: `[x, y, z, vx, vy, vz]`
+- 3D measurement vector: `[x, y, z]`
+- Timestamp-aware prediction with variable dt between frames
+
+### Cost Function
+- **Euclidean distance** (normalized by distance gate)
+- **3D axis-aligned IoU** (converted to cost as `1 - IoU`)
+- Weighted combination with configurable per-metric weights
+
+### Association
+- **Hungarian algorithm** for optimal bipartite matching
+- **Category gating** — tracks and detections must share the same object class
+- **Distance gating** — pairs beyond a physical displacement threshold (30m, based on 120 mph at 2 Hz) are excluded from consideration
+
+### Track Management
+- Automatic track creation from unmatched detections
+- Automatic track deletion after exceeding a configurable consecutive miss threshold
+- Per-track lifecycle metadata: age, hits, consecutive misses
+
+---
+
+## Project Structure
+
+```
+Project_MOT/
+├── include/                          # Header files
+│   ├── types.hpp                     #   Common type aliases
+│   ├── detection.hpp                 #   Detection data structure
+│   ├── track.hpp                     #   Track data structure
+│   ├── detector.hpp                  #   Abstract detector interface + DetectorConfig
+│   ├── gt_detector.hpp               #   Ground-truth detector implementation
+│   ├── motion_model.hpp              #   Abstract motion model interface + MotionModelConfig
+│   ├── linear_kf.hpp                 #   Linear Kalman Filter implementation
+│   ├── cost_function.hpp             #   Cost computation + CostFunctionConfig
+│   ├── associator.hpp                #   Track-detection association + AssociatorConfig
+│   └── tracker.hpp                   #   Pipeline orchestrator + TrackerConfig
+├── src/                              # Source files
+│   ├── main.cpp                      #   Entry point: config parsing and frame loop
+│   ├── tracker.cpp                   #   Tracker pipeline implementation
+│   ├── track.cpp                     #   Track constructor
+│   ├── gt_detector.cpp               #   JSON scene file parser
+│   ├── linear_kf.cpp                 #   Kalman Filter predict/update
+│   ├── cost_function.cpp             #   Distance and IoU cost implementations
+│   └── associator.cpp                #   Cost matrix, gating, and Hungarian matching
+├── configs/
+│   └── MOT_v1.json                   #   v1 configuration
+├── third_party/
+│   └── hungarian-algorithm-cpp/      #   Vendored Hungarian algorithm library
+└── CMakeLists.txt                    #   Build configuration
+```
+
+---
+
+## Dependencies
+
+- **C++14** or later
+- **Eigen** — Linear algebra (state vectors, matrices)
+- **nlohmann/json** — JSON configuration and data parsing
+- **Hungarian algorithm** — Vendored from [mcximing/hungarian-algorithm-cpp](https://github.com/mcximing/hungarian-algorithm-cpp)
+
+---
+
+## Build and Run
+
+```bash
+cd Project_MOT
+mkdir build && cd build
+cmake ..
+make
+./mot_tracker
+```
+
+The tracker reads its configuration from `../configs/MOT_v1.json` relative to the build directory.
+
+---
+
+## Data Preparation
+
+### nuScenes Sanity Check
+
+Verify that the nuScenes dataset is correctly mounted and accessible:
 
 ```bash
 python3 scripts/check_nuscenes.py \
@@ -15,59 +166,9 @@ python3 scripts/check_nuscenes.py \
     --version  v1.0-mini
 ```
 
-### What the script checks
+### Export Ground-Truth Detections
 
-| Check | Description |
-|---|---|
-| `--dataroot` exists | The dataset root directory is mounted and readable |
-| `--version` sub-directory exists | e.g. `v1.0-mini/` is present inside the root |
-| Dataset summary | Prints scene / sample / sample_data / calibrated_sensor / ego_pose counts |
-| First scene & sample | Name, token, timestamp, and available sensor channels |
-| File existence | Verifies `LIDAR_TOP` and every `CAM_*` file path on disk |
-
-### Arguments
-
-| Argument | Default | Description |
-|---|---|---|
-| `--dataroot` | `/data/nuscenes` | Root directory of the nuScenes dataset |
-| `--version` | `v1.0-mini` | Dataset version (`v1.0-mini`, `v1.0-trainval`, etc.) |
-
-### Example output (healthy dataset)
-
-```
-Loading nuScenes v1.0-mini from /data/nuscenes …
-
-=== Dataset summary ===
-  Scenes            : 10
-  Samples           : 404
-  Sample data       : 31206
-  Calibrated sensors: 148
-  Ego poses         : 31206
-
-=== First scene ===
-  Name       : scene-0061
-  Description: Parked truck, construction, intersection, turn
-  Token      : cc8c0bf57f984915a77078b10eb33198
-
-=== First sample ===
-  Token    : ca9a282c9e77460f8360f564131a8af5
-  Timestamp: 1532402927647951 µs
-  Channels : CAM_BACK, CAM_BACK_LEFT, CAM_BACK_RIGHT, CAM_FRONT, CAM_FRONT_LEFT, CAM_FRONT_RIGHT, LIDAR_TOP, RADAR_BACK_LEFT, RADAR_BACK_RIGHT, RADAR_FRONT, RADAR_FRONT_LEFT, RADAR_FRONT_RIGHT
-
-=== File existence check (first sample) ===
-  [OK] LIDAR_TOP: /data/nuscenes/samples/LIDAR_TOP/...
-  [OK] CAM_BACK : /data/nuscenes/samples/CAM_BACK/...
-  ...
-
-All file checks passed. Dataset looks healthy.
-```
-
----
-
-## Export nuScenes GT detections
-
-Extract ground-truth bounding-box annotations from a nuScenes scene into a
-per-frame JSON file under `results/gt/`.
+Extract ground-truth bounding-box annotations from a nuScenes scene into a per-frame JSON file:
 
 ```bash
 python3 scripts/export_gt_detections.py \
@@ -81,18 +182,7 @@ Validate the exported file:
 python3 scripts/validate_gt_json.py --input results/gt/scene_0000.json
 ```
 
-### Arguments (export)
-
-| Argument | Default | Description |
-|---|---|---|
-| `--dataroot` | `/workspace/data/nuscenes` | Root directory of the nuScenes dataset |
-| `--version` | `v1.0-mini` | Dataset version |
-| `--scene-index` | `0` | Index of the scene to export |
-| `--output` | `results/gt/scene_0000.json` | Output JSON path |
-
-### Output format
-
-The JSON file is a list of frame objects:
+### Detection JSON Format
 
 ```json
 [
