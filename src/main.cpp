@@ -14,13 +14,18 @@
 
 int main()
 {
-    // Configuration
-    // TODO temp. read from a config file later
-    std::string scene_path = "../results/gt/scene_0000.json";
-    std::string detector_type = "GT";
-    std::string motion_model_type = "ConstVelocity";
-    std::vector<std::string> cost_types = {"distance", "iou"};
-    std::vector<double> cost_weights = {0.5, 0.5};
+    // Load configuration
+    std::string config_path = "../configs/MOT_v1.json";
+    std::ifstream config_file(config_path);
+    nlohmann::json config = nlohmann::json::parse(config_file);
+
+    std::string scene_path = config["data"]["scene_path"];
+    std::string detector_type = config["detector"]["type"];
+    std::string motion_model_type = config["motion_model"]["type"];
+    std::vector<std::string> cost_types = config["cost_function"]["types"].get<std::vector<std::string>>();
+    std::vector<double> cost_weights = config["cost_function"]["weights"].get<std::vector<double>>();
+    double distance_gate = config["cost_function"]["distance_gate"];
+    int max_consecutive_misses = config["track_management"]["max_consecutive_misses"];
 
     // Detector and motion model setup
     std::unique_ptr<Detector> detector;
