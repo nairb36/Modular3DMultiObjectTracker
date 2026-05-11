@@ -8,6 +8,8 @@ Designed from the ground up for **extensibility** — new detectors, motion mode
 
 ## Architecture
 
+![Architecture Diagram](docs/MOT_v1_architecture.png)
+
 The system follows a clean separation of concerns, with each component encapsulated in its own module behind a well-defined interface. The **Tracker** orchestrates a per-frame pipeline without knowing the internals of any component it drives.
 
 ### Per-Frame Pipeline
