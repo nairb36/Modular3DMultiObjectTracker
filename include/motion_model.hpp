@@ -6,10 +6,18 @@
 
 #include <Eigen/Dense>
 #include <string>
+#include <nlohmann/json.hpp>
 
 struct MotionModelConfig
 {
     std::string type;
+
+    static MotionModelConfig from_json(const nlohmann::json& j)
+    {
+        MotionModelConfig cfg;
+        cfg.type = j["type"].get<std::string>();
+        return cfg;
+    }
 };
 
 class MotionModel

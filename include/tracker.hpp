@@ -6,6 +6,7 @@
 
 #include "track.hpp"
 #include "detector.hpp"
+#include "motion_model.hpp"
 #include "cost_function.hpp"
 #include "associator.hpp"
 #include <vector>
@@ -22,6 +23,17 @@ struct TrackerConfig
     CostFunctionConfig cost_function_config;
     AssociatorConfig associator_config;
     int max_consecutive_misses = 5;
+
+    static TrackerConfig from_json(const nlohmann::json& j)
+    {
+        TrackerConfig cfg;
+        cfg.detector_config = DetectorConfig::from_json(j["detector"]);
+        cfg.motion_model_config = MotionModelConfig::from_json(j["motion_model"]);
+        cfg.cost_function_config = CostFunctionConfig::from_json(j["cost_function"]);
+        cfg.associator_config = AssociatorConfig::from_json(j["associator"]);
+        cfg.max_consecutive_misses = j["track_management"]["max_consecutive_misses"].get<int>();
+        return cfg;
+    }
 };
 
 class Tracker

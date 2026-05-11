@@ -6,10 +6,18 @@
 
 #include "detection.hpp"
 #include <string>
+#include <nlohmann/json.hpp>
 
 struct DetectorConfig
 {
     std::string type;
+
+    static DetectorConfig from_json(const nlohmann::json& j)
+    {
+        DetectorConfig cfg;
+        cfg.type = j["type"].get<std::string>();
+        return cfg;
+    }
 };
 
 /// @brief Abstract base class for detection sources; subclass per sensor/input type

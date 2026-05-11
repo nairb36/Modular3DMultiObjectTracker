@@ -21,14 +21,7 @@ int main()
 
     std::string scene_path = config["data"]["scene_path"];
 
-    TrackerConfig tracker_config;
-    tracker_config.detector_config.type = config["detector"]["type"].get<std::string>();
-    tracker_config.motion_model_config.type = config["motion_model"]["type"].get<std::string>();
-    tracker_config.cost_function_config.cost_types = config["cost_function"]["types"].get<std::vector<std::string>>();
-    tracker_config.cost_function_config.cost_weights = config["cost_function"]["weights"].get<std::vector<double>>();
-    tracker_config.cost_function_config.distance_gate = config["cost_function"]["distance_gate"].get<double>();
-    tracker_config.associator_config.distance_gate = config["associator"]["distance_gate"].get<double>();
-    tracker_config.max_consecutive_misses = config["track_management"]["max_consecutive_misses"].get<int>();
+    TrackerConfig tracker_config = TrackerConfig::from_json(config);
 
     // Detector and motion model setup
     std::unique_ptr<Detector> detector;
