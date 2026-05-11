@@ -54,4 +54,6 @@ int main()
         std::cout<<"**************************"<<std::endl;
     }
 
+    std::string results_path = mot_tracker.save_results("../results/tracking");
+    std::cout << "Wrote results to " << results_path << std::endl;
 }
