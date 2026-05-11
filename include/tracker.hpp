@@ -62,10 +62,7 @@ class Tracker
     std::unique_ptr<Associator> associator_;
     std::unordered_map<int, int> tracks_to_detections_map_;
 
-    public:
-    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
-
-    void tracker_step();
+    // Member Functions
     void reset_per_frame_state();
     void get_detections();
     double get_timestamp();
@@ -74,5 +71,10 @@ class Tracker
     void update_tracks_state();
     void create_new_tracks();
     void delete_old_tracks();
+
+    public:
+    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
+    void tracker_step();
+
 };
 

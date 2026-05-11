@@ -10,7 +10,6 @@ class LinearKF: public MotionModel
 {
     private:
     Eigen::VectorXd x_; // State
-    // TODO: move Q, R, P initial values to MotionModelConfig
     Eigen::MatrixXd P_; // State Covariance Matrix
     Eigen::MatrixXd F_; // State Transition Matrix
     Eigen::MatrixXd Q_; // System Noise Covariance
