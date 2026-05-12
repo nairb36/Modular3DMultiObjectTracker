@@ -156,6 +156,12 @@ The tracker reads its configuration from `../configs/MOT_v1.json` relative to th
 
 ---
 
+## Visualization
+
+For interactive 3D visualization of tracking results (LiDAR point clouds, 3D bounding boxes, and multi-camera views), see [SensorLens](https://github.com/nairb36/SensorLens).
+
+---
+
 ## Data Preparation
 
 ### nuScenes Sanity Check
