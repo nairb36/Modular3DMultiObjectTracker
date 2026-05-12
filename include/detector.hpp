@@ -11,11 +11,13 @@
 struct DetectorConfig
 {
     std::string type;
+    std::vector<std::string> tracked_categories;
 
     static DetectorConfig from_json(const nlohmann::json& j)
     {
         DetectorConfig cfg;
         cfg.type = j["type"].get<std::string>();
+        cfg.tracked_categories = j["tracked_categories"].get<std::vector<std::string>>();
         return cfg;
     }
 };

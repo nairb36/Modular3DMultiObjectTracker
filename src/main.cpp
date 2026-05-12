@@ -29,7 +29,7 @@ int main()
 
     if (tracker_config.detector_config.type == "GT")
     {
-        detector = std::make_unique<GTDetector>(scene_path);
+        detector = std::make_unique<GTDetector>(scene_path, tracker_config.detector_config);
     }
 
     if (tracker_config.motion_model_config.type == "ConstVelocity")
