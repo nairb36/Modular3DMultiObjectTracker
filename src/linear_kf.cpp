@@ -30,6 +30,8 @@ LinearKF::LinearKF(Eigen::Vector3d position)
     H_.topLeftCorner(3, 3) = Eigen::Matrix3d::Identity();
         
     R_ = sigma_squared_measurement.asDiagonal();
+
+    yaw_ = 0.0;
 }
 
 
@@ -40,6 +42,8 @@ void LinearKF::predict(double dt)
 
     x_ = F_*x_;
     P_ = F_*P_*F_.transpose() + Q_;
+
+    compute_yaw();
 }
 
 
@@ -52,6 +56,8 @@ void LinearKF::update(const Eigen::VectorXd& z)
 
     x_ = x_ + K*y;
     P_ = (I - K*H_)*P_;
+
+    compute_yaw();
 }
 
 
@@ -64,4 +70,14 @@ Eigen::Vector3d LinearKF::get_position() const
 Eigen::MatrixXd LinearKF::get_covariance() const
 {
     return P_;
+}
+
+void LinearKF::compute_yaw()
+{
+    yaw_ = atan2(x_(4), x_(3));
+}
+
+double LinearKF::get_yaw() const
+{
+    return yaw_;
 }
