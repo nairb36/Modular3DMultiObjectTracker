@@ -25,9 +25,7 @@ class MotionModel
     public:
     virtual Eigen::Vector3d get_position() const = 0;
     virtual Eigen::MatrixXd get_covariance() const = 0;
-    virtual double get_yaw() const = 0;
     virtual void predict(double dt) = 0;
     virtual void update(const Eigen::VectorXd& measurement) = 0;
-    virtual void compute_yaw() = 0;
     virtual ~MotionModel() = default;
 };
