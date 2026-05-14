@@ -6,6 +6,12 @@ Designed from the ground up for **extensibility** — new detectors, motion mode
 
 ---
 
+## Demo
+
+![Demo](docs/MOT_V1.gif)
+
+---
+
 ## Architecture
 
 ![Architecture Diagram](docs/MOT_v1_architecture.png)
