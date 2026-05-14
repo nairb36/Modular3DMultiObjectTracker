@@ -15,12 +15,14 @@ class LinearKF: public MotionModel
     Eigen::MatrixXd Q_; // System Noise Covariance
     Eigen::MatrixXd H_; // Observation Matrix
     Eigen::MatrixXd R_; // Measurement Noise Covariance Matrix
+    double yaw_; // yaw of BBox (Not part of the State)
 
     
     public:
     LinearKF(Eigen::Vector3d);
     Eigen::Vector3d get_position() const;
     Eigen::MatrixXd get_covariance() const;
+    double get_yaw() const;
     void predict(double dt);
-    void update(const Eigen::VectorXd& measurement);
+    void update(const Eigen::VectorXd& measurement, const double yaw);
 };

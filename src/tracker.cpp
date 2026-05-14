@@ -151,7 +151,8 @@ void Tracker::update_tracks_state()
         {
             // Current track is associated with a detection in the current frame
             Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
-            tracks_[i].motion_model_->update(corresponding_detection.position_); // Measurement update for state estimation
+            tracks_[i].motion_model_->update(corresponding_detection.position_, corresponding_detection.yaw_); // Measurement update for state estimation
+            tracks_[i].yaw_ = tracks_[i].motion_model_->get_yaw();
             tracks_[i].consecutive_misses_ = 0;
             tracks_[i].hits_++;
             tracks_[i].age_++;
