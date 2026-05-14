@@ -54,6 +54,8 @@ int main()
         std::cout<<"**************************"<<std::endl;
     }
 
-    std::string results_path = mot_tracker.save_results("../results/tracking");
+    std::string scene_name = scene_path.substr(scene_path.find_last_of('/') + 1);
+    scene_name = scene_name.substr(0, scene_name.find_last_of('.'));
+    std::string results_path = mot_tracker.save_results("../results/tracking", scene_name);
     std::cout << "Wrote results to " << results_path << std::endl;
 }

@@ -232,12 +232,12 @@ void Tracker::log_tracker_results()
 
 
 // Writes accumulated results to a timestamped JSON file in output_dir
-std::string Tracker::save_results(const std::string& output_dir)
+std::string Tracker::save_results(const std::string& output_dir, const std::string& scene_name)
 {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
-    ss << output_dir << "/results_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".json";
+    ss << output_dir << "/" << scene_name << "_results_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".json";
 
     std::string output_path = ss.str();
     std::ofstream file(output_path);

@@ -83,7 +83,7 @@ class Tracker
     public:
     Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
     void tracker_step();
-    std::string save_results(const std::string& output_dir);
+    std::string save_results(const std::string& output_dir, const std::string& scene_name);
 
 };
 
