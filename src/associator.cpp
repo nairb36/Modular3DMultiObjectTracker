@@ -56,5 +56,12 @@ void Associator::perform_bipartite_matching()
 
 std::vector<int> Associator::get_assignment_list()
 {
+    for (int i = 0; i < assignments_.size(); i++)
+    {
+        if (assignments_[i] >= 0 && cost_matrix_[i][assignments_[i]] == std::numeric_limits<double>::max())
+        {
+            assignments_[i] = -1;
+        }
+    }
     return assignments_;
 }

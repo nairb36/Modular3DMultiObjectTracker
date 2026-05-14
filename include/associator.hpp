@@ -9,10 +9,18 @@
 #include "Hungarian.h"
 #include "cost_function.hpp"
 #include <limits>
+#include <nlohmann/json.hpp>
 
 struct AssociatorConfig
 {
     double distance_gate = 5.0;
+
+    static AssociatorConfig from_json(const nlohmann::json& j)
+    {
+        AssociatorConfig cfg;
+        cfg.distance_gate = j["distance_gate"].get<double>();
+        return cfg;
+    }
 };
 
 class Associator

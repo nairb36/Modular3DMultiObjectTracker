@@ -6,6 +6,7 @@
 
 #include "track.hpp"
 #include "detector.hpp"
+#include "motion_model.hpp"
 #include "cost_function.hpp"
 #include "associator.hpp"
 #include <vector>
@@ -14,6 +15,10 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <fstream>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 struct TrackerConfig
 {
@@ -22,6 +27,17 @@ struct TrackerConfig
     CostFunctionConfig cost_function_config;
     AssociatorConfig associator_config;
     int max_consecutive_misses = 5;
+
+    static TrackerConfig from_json(const nlohmann::json& j)
+    {
+        TrackerConfig cfg;
+        cfg.detector_config = DetectorConfig::from_json(j["detector"]);
+        cfg.motion_model_config = MotionModelConfig::from_json(j["motion_model"]);
+        cfg.cost_function_config = CostFunctionConfig::from_json(j["cost_function"]);
+        cfg.associator_config = AssociatorConfig::from_json(j["associator"]);
+        cfg.max_consecutive_misses = j["track_management"]["max_consecutive_misses"].get<int>();
+        return cfg;
+    }
 };
 
 class Tracker
@@ -50,10 +66,10 @@ class Tracker
     std::unique_ptr<Associator> associator_;
     std::unordered_map<int, int> tracks_to_detections_map_;
 
-    public:
-    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
+    // Results
+    nlohmann::json results_log_;
 
-    void tracker_step();
+    // Member Functions
     void reset_per_frame_state();
     void get_detections();
     double get_timestamp();
@@ -62,5 +78,12 @@ class Tracker
     void update_tracks_state();
     void create_new_tracks();
     void delete_old_tracks();
+    void log_tracker_results();
+
+    public:
+    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
+    void tracker_step();
+    std::string save_results(const std::string& output_dir, const std::string& scene_name);
+
 };
 

@@ -6,7 +6,15 @@ Designed from the ground up for **extensibility** — new detectors, motion mode
 
 ---
 
+## Demo
+
+![Demo](docs/MOT_V1.gif)
+
+---
+
 ## Architecture
+
+![Architecture Diagram](docs/MOT_v1_architecture.png)
 
 The system follows a clean separation of concerns, with each component encapsulated in its own module behind a well-defined interface. The **Tracker** orchestrates a per-frame pipeline without knowing the internals of any component it drives.
 
@@ -151,6 +159,12 @@ make
 ```
 
 The tracker reads its configuration from `../configs/MOT_v1.json` relative to the build directory.
+
+---
+
+## Visualization
+
+For interactive 3D visualization of tracking results (LiDAR point clouds, 3D bounding boxes, and multi-camera views), see [SensorLens](https://github.com/nairb36/SensorLens).
 
 ---
 

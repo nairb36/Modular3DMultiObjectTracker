@@ -21,14 +21,7 @@ int main()
 
     std::string scene_path = config["data"]["scene_path"];
 
-    TrackerConfig tracker_config;
-    tracker_config.detector_config.type = config["detector"]["type"].get<std::string>();
-    tracker_config.motion_model_config.type = config["motion_model"]["type"].get<std::string>();
-    tracker_config.cost_function_config.cost_types = config["cost_function"]["types"].get<std::vector<std::string>>();
-    tracker_config.cost_function_config.cost_weights = config["cost_function"]["weights"].get<std::vector<double>>();
-    tracker_config.cost_function_config.distance_gate = config["cost_function"]["distance_gate"].get<double>();
-    tracker_config.associator_config.distance_gate = config["associator"]["distance_gate"].get<double>();
-    tracker_config.max_consecutive_misses = config["track_management"]["max_consecutive_misses"].get<int>();
+    TrackerConfig tracker_config = TrackerConfig::from_json(config);
 
     // Detector and motion model setup
     std::unique_ptr<Detector> detector;
@@ -36,7 +29,7 @@ int main()
 
     if (tracker_config.detector_config.type == "GT")
     {
-        detector = std::make_unique<GTDetector>(scene_path);
+        detector = std::make_unique<GTDetector>(scene_path, tracker_config.detector_config);
     }
 
     if (tracker_config.motion_model_config.type == "ConstVelocity")
@@ -61,4 +54,8 @@ int main()
         std::cout<<"**************************"<<std::endl;
     }
 
+    std::string scene_name = scene_path.substr(scene_path.find_last_of('/') + 1);
+    scene_name = scene_name.substr(0, scene_name.find_last_of('.'));
+    std::string results_path = mot_tracker.save_results("../results/tracking", scene_name);
+    std::cout << "Wrote results to " << results_path << std::endl;
 }

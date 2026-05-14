@@ -46,6 +46,8 @@ void Tracker::tracker_step()
     delete_old_tracks(); // Delete tracks exceeding consecutive miss threshold
     std::cout<<"Completed delete_old_tracks"<<std::endl;
 
+    log_tracker_results();
+
     curr_frame_id_++;
 }
 
@@ -149,7 +151,8 @@ void Tracker::update_tracks_state()
         {
             // Current track is associated with a detection in the current frame
             Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
-            tracks_[i].motion_model_->update(corresponding_detection.position_); // Measurement update for state estimation
+            tracks_[i].motion_model_->update(corresponding_detection.position_, corresponding_detection.yaw_); // Measurement update for state estimation
+            tracks_[i].yaw_ = tracks_[i].motion_model_->get_yaw();
             tracks_[i].consecutive_misses_ = 0;
             tracks_[i].hits_++;
             tracks_[i].age_++;
@@ -197,4 +200,47 @@ void Tracker::delete_old_tracks()
             itr++; // Only increment if no deletion occurred
         }
     }
+}
+
+
+// Snapshots all active tracks for the current frame into results_log_
+void Tracker::log_tracker_results()
+{
+    nlohmann::json frame_entry;
+    frame_entry["frame_id"] = curr_frame_id_;
+    frame_entry["timestamp"] = curr_timestamp_;
+
+    nlohmann::json tracks_array = nlohmann::json::array();
+    for (const auto& track : tracks_)
+    {
+        Eigen::Vector3d position = track.motion_model_->get_position();
+        nlohmann::json track_entry;
+        track_entry["id"] = track.id_;
+        track_entry["category_name"] = track.category_name_;
+        track_entry["translation"] = {position.x(), position.y(), position.z()};
+        track_entry["size"] = {track.bbox_dims_.x(), track.bbox_dims_.y(), track.bbox_dims_.z()};
+        track_entry["yaw"] = track.yaw_;
+        track_entry["age"] = track.age_;
+        track_entry["hits"] = track.hits_;
+        track_entry["consecutive_misses"] = track.consecutive_misses_;
+        tracks_array.push_back(track_entry);
+    }
+
+    frame_entry["tracks"] = tracks_array;
+    results_log_.push_back(frame_entry);
+}
+
+
+// Writes accumulated results to a timestamped JSON file in output_dir
+std::string Tracker::save_results(const std::string& output_dir, const std::string& scene_name)
+{
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << output_dir << "/" << scene_name << "_results_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".json";
+
+    std::string output_path = ss.str();
+    std::ofstream file(output_path);
+    file << results_log_.dump(2);
+    return output_path;
 }

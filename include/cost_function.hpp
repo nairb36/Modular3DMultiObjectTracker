@@ -9,12 +9,22 @@
 #include <vector>
 #include <string>
 #include <Eigen/Dense>
+#include <nlohmann/json.hpp>
 
 struct CostFunctionConfig
 {
     std::vector<std::string> cost_types;
     std::vector<double> cost_weights;
     double distance_gate = 5.0;
+
+    static CostFunctionConfig from_json(const nlohmann::json& j)
+    {
+        CostFunctionConfig cfg;
+        cfg.cost_types = j["types"].get<std::vector<std::string>>();
+        cfg.cost_weights = j["weights"].get<std::vector<double>>();
+        cfg.distance_gate = j["distance_gate"].get<double>();
+        return cfg;
+    }
 };
 
 class CostFunction

@@ -10,7 +10,7 @@ LinearKF::LinearKF(Eigen::Vector3d position)
     Eigen::VectorXd sigma_squared_state(6);
     sigma_squared_state<< 100, 100, 100, 20, 20, 5; // sigma squared for x, y, z, vx, vy, vz
     Eigen::VectorXd sigma_squared_measurement(3);
-    sigma_squared_measurement<< 4, 4, 4; // sigma squared for x, y, z
+    sigma_squared_measurement<< 0.1, 0.1, 0.1; // sigma squared for x, y, z
     Eigen::VectorXd sigma_squared_process(6);
     sigma_squared_process << 1, 1, 1, 1, 1, 1;
 
@@ -43,7 +43,7 @@ void LinearKF::predict(double dt)
 }
 
 
-void LinearKF::update(const Eigen::VectorXd& z)
+void LinearKF::update(const Eigen::VectorXd& z, const double yaw)
 {
     Eigen::VectorXd y = z - H_*x_;
     Eigen::MatrixXd S = H_*P_*H_.transpose() + R_;
@@ -52,6 +52,8 @@ void LinearKF::update(const Eigen::VectorXd& z)
 
     x_ = x_ + K*y;
     P_ = (I - K*H_)*P_;
+
+    yaw_ = yaw;
 }
 
 
@@ -64,4 +66,9 @@ Eigen::Vector3d LinearKF::get_position() const
 Eigen::MatrixXd LinearKF::get_covariance() const
 {
     return P_;
+}
+
+double LinearKF::get_yaw() const
+{
+    return yaw_;
 }

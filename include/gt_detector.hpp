@@ -14,10 +14,12 @@ using json = nlohmann::json;
 class GTDetector : public Detector
 {
     public:
-    GTDetector(const std::string& json_path);
+    GTDetector(const std::string& json_path, const DetectorConfig& config);
     std::vector<Detection> detect(int) override;
     double get_timestamp(int) override;
 
     private:
     json scene_data_;
+    std::vector<std::string> tracked_categories_;
+    bool is_tracked_category(const std::string& category_name);
 };

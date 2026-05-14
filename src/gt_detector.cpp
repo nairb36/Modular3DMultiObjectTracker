@@ -4,7 +4,8 @@
 
 #include <iostream>
 
-GTDetector::GTDetector(const std::string& json_path)
+GTDetector::GTDetector(const std::string& json_path, const DetectorConfig& config)
+    : tracked_categories_(config.tracked_categories)
 {
     std::ifstream file(json_path);
     scene_data_ = json::parse(file);
@@ -30,10 +31,26 @@ std::vector<Detection> GTDetector::detect(int frame_id)
         detection.rotation_quaternion_ = Eigen::Vector4d(r[0], r[1], r[2], r[3]);
         detection.yaw_ = curr_detections[i]["yaw"];
 
-        detections.push_back(detection);
+        if (is_tracked_category(detection.category_name_))
+        {
+            detections.push_back(detection);
+        }
     }
 
     return detections;
+}
+
+
+bool GTDetector::is_tracked_category(const std::string& category_name)
+{
+    for (const auto& prefix : tracked_categories_)
+    {
+        if (category_name.rfind(prefix, 0) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 double GTDetector::get_timestamp(int frame_id)
