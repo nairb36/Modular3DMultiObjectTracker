@@ -196,6 +196,55 @@ Validate the exported file:
 python3 scripts/validate_gt_json.py --input results/gt/scene_0000.json
 ```
 
+---
+
+## Evaluation
+
+Tracking results are evaluated against the nuScenes tracking benchmark using the official `nuscenes-devkit`. The evaluation computes standard multi-object tracking metrics across 7 classes (bicycle, bus, car, motorcycle, pedestrian, trailer, truck).
+
+### Metrics
+
+| Metric | Description |
+|---|---|
+| **AMOTA** | Average Multi-Object Tracking Accuracy — primary nuScenes metric. Averages MOTA across 40 recall thresholds using `tracking_score`. |
+| **AMOTP** | Average Multi-Object Tracking Precision — averaged MOTP across recall thresholds. |
+| **MOTA** | Multi-Object Tracking Accuracy — accounts for false positives, false negatives, and identity switches. |
+| **MOTP** | Multi-Object Tracking Precision — average localization error of matched detections (lower is better). |
+| **MOTAR** | Modified MOTA at measured recall. |
+| **IDS** | Number of identity switches. |
+| **FRAG** | Number of track fragmentations. |
+| **TID** | Track Initialization Duration — average time from first GT appearance to first correct detection. |
+| **LGD** | Longest Gap Duration — average longest gap in continuous tracking. |
+| **MT / ML** | Mostly Tracked / Mostly Lost track counts. |
+
+### Setup
+
+The evaluation requires patching `nuscenes-devkit` and `motmetrics` for compatibility with current numpy/pandas versions. Run once after installing dependencies:
+
+```bash
+pip install "numpy>=1.24,<2" "pandas>=1.5,<2" motmetrics==1.4.0
+python3 scripts/patch_nuscenes_eval.py
+```
+
+### Running Evaluation
+
+After running the tracker, pass the timestamped results directory to the evaluation script:
+
+```bash
+python3 scripts/evaluate.py results/tracking/20260515_232920
+```
+
+The script auto-detects which scenes belong to `mini_val` and `mini_train`, converts tracker output to nuScenes submission format, and runs the official `TrackingEval` for each split.
+
+### v1 Results (nuScenes mini)
+
+| Split | AMOTA | AMOTP | MOTA | MOTP | Recall | IDS | FRAG |
+|---|---|---|---|---|---|---|---|
+| mini_val (2 scenes) | 0.879 | 0.047 | 0.885 | 0.014 | 1.000 | 116 | 3 |
+| mini_train (8 scenes) | 0.911 | 0.083 | 0.922 | 0.027 | 0.989 | 121 | 33 |
+
+---
+
 ### Detection JSON Format
 
 ```json
