@@ -1,6 +1,6 @@
 {
     "data": {
-        "scene_path": "../results/gt/scene_0000.json"
+        "gt_dir": "../results/gt"
     },
 
     "detector": {

@@ -3,6 +3,7 @@
 
 
 #include "tracker.hpp"
+#include <filesystem>
 
 Tracker::Tracker(std::unique_ptr<Detector> detector,
                  std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory,
@@ -238,12 +239,8 @@ void Tracker::log_tracker_results()
 // Writes accumulated results to a timestamped JSON file in output_dir
 std::string Tracker::save_results(const std::string& output_dir, const std::string& scene_name)
 {
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << output_dir << "/" << scene_name << "_results_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".json";
-
-    std::string output_path = ss.str();
+    std::filesystem::create_directories(output_dir);
+    std::string output_path = output_dir + "/" + scene_name + ".json";
     std::ofstream file(output_path);
     file << results_log_.dump(2);
     return output_path;
