@@ -217,15 +217,6 @@ Tracking results are evaluated against the nuScenes tracking benchmark using the
 | **LGD** | Longest Gap Duration — average longest gap in continuous tracking. |
 | **MT / ML** | Mostly Tracked / Mostly Lost track counts. |
 
-### Setup
-
-The evaluation requires patching `nuscenes-devkit` and `motmetrics` for compatibility with current numpy/pandas versions. Run once after installing dependencies:
-
-```bash
-pip install "numpy>=1.24,<2" "pandas>=1.5,<2" motmetrics==1.4.0
-python3 scripts/patch_nuscenes_eval.py
-```
-
 ### Running Evaluation
 
 After running the tracker, pass the timestamped results directory to the evaluation script:
