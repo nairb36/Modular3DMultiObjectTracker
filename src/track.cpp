@@ -3,7 +3,7 @@
 
 #include "track.hpp"
 
-Track::Track(int id, std::string category_name, std::unique_ptr<MotionModel> motion_model, Eigen::Vector3d bbox_dims, double yaw)
+Track::Track(int id, std::string category_name, std::unique_ptr<MotionModel> motion_model, Eigen::Vector3d bbox_dims, double yaw, double tracking_score)
 {
     id_ = id;
     category_name_ = category_name;
@@ -12,6 +12,8 @@ Track::Track(int id, std::string category_name, std::unique_ptr<MotionModel> mot
     consecutive_misses_ = 0;
     hits_ = 1;
     age_ = 1;
+
+    tracking_score_ = tracking_score;
 
     // Optional metadata
     bbox_dims_ = bbox_dims;

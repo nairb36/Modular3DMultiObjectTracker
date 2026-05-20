@@ -17,9 +17,11 @@ struct Track
     int hits_;
     int age_;
 
+    double tracking_score_;
+
     // Optional Metadata
     Eigen::Vector3d bbox_dims_;
     double yaw_;
 
-    Track(int id, std::string category_name, std::unique_ptr<MotionModel> motion_model, Eigen::Vector3d bbox_dims, double yaw);
+    Track(int id, std::string category_name, std::unique_ptr<MotionModel> motion_model, Eigen::Vector3d bbox_dims, double yaw, double tracking_score);
 };

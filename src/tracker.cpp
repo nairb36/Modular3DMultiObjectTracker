@@ -3,6 +3,7 @@
 
 
 #include "tracker.hpp"
+#include <filesystem>
 
 Tracker::Tracker(std::unique_ptr<Detector> detector,
                  std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory,
@@ -91,7 +92,8 @@ void Tracker::predict_tracks_state(double dt)
 {
     for (Track& track: tracks_)
     {
-        track.motion_model_->predict(dt); // State prediction based on motion model
+        track.motion_model_->predict(dt);
+        // TODO: Decay tracking_score during prediction (e.g. based on covariance or consecutive misses)
     }
 }
 
@@ -153,6 +155,7 @@ void Tracker::update_tracks_state()
             Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
             tracks_[i].motion_model_->update(corresponding_detection.position_, corresponding_detection.yaw_); // Measurement update for state estimation
             tracks_[i].yaw_ = tracks_[i].motion_model_->get_yaw();
+            // TODO: Update tracking_score on match (e.g. running average of detection confidence, hit ratio, or covariance-based)
             tracks_[i].consecutive_misses_ = 0;
             tracks_[i].hits_++;
             tracks_[i].age_++;
@@ -179,7 +182,8 @@ void Tracker::create_new_tracks()
         Eigen::Vector3d bbox_dims = unmatched_detection.bbox_dims_;
         double yaw = unmatched_detection.yaw_;
 
-        Track new_track(id, category_name, std::move(motion_model), bbox_dims, yaw);
+        double tracking_score = unmatched_detection.confidence_;
+        Track new_track(id, category_name, std::move(motion_model), bbox_dims, yaw, tracking_score);
 
         tracks_.push_back(std::move(new_track));
     }
@@ -220,6 +224,7 @@ void Tracker::log_tracker_results()
         track_entry["translation"] = {position.x(), position.y(), position.z()};
         track_entry["size"] = {track.bbox_dims_.x(), track.bbox_dims_.y(), track.bbox_dims_.z()};
         track_entry["yaw"] = track.yaw_;
+        track_entry["tracking_score"] = track.tracking_score_;
         track_entry["age"] = track.age_;
         track_entry["hits"] = track.hits_;
         track_entry["consecutive_misses"] = track.consecutive_misses_;
@@ -234,12 +239,8 @@ void Tracker::log_tracker_results()
 // Writes accumulated results to a timestamped JSON file in output_dir
 std::string Tracker::save_results(const std::string& output_dir, const std::string& scene_name)
 {
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << output_dir << "/" << scene_name << "_results_" << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S") << ".json";
-
-    std::string output_path = ss.str();
+    std::filesystem::create_directories(output_dir);
+    std::string output_path = output_dir + "/" + scene_name + ".json";
     std::ofstream file(output_path);
     file << results_log_.dump(2);
     return output_path;
