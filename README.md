@@ -36,7 +36,8 @@ Frame N
 | Module | Responsibility |
 |---|---|
 | **Tracker** | Orchestrates the full per-frame pipeline. Owns all active tracks and delegates to each component. |
-| **Detector** | Abstract interface for producing detections. Decouples the tracker from the data source. |
+| **Scene** | Data structures representing a scene: frames, ego pose, sensor data paths, calibration, and annotations. Loaded once from a self-contained JSON file. |
+| **Detector** | Abstract interface for producing detections from a Frame. Decouples the tracker from the data source. |
 | **MotionModel** | Abstract interface for state estimation. Provides `predict()` and `update()` without exposing filter internals. |
 | **CostFunction** | Computes a weighted combination of configurable cost metrics between a track and a detection. |
 | **Associator** | Builds the cost matrix, applies gating rules, and solves the assignment problem via the Hungarian algorithm. |
@@ -113,6 +114,7 @@ Each component defines its own **config struct** with sensible defaults. The top
 Project_MOT/
 ├── include/                          # Header files
 │   ├── types.hpp                     #   Common type aliases
+│   ├── scene.hpp                     #   Scene, Frame, EgoPose, Calibration, Annotation structs
 │   ├── detection.hpp                 #   Detection data structure
 │   ├── track.hpp                     #   Track data structure
 │   ├── detector.hpp                  #   Abstract detector interface + DetectorConfig
@@ -123,15 +125,25 @@ Project_MOT/
 │   ├── associator.hpp                #   Track-detection association + AssociatorConfig
 │   └── tracker.hpp                   #   Pipeline orchestrator + TrackerConfig
 ├── src/                              # Source files
-│   ├── main.cpp                      #   Entry point: config parsing and frame loop
+│   ├── main.cpp                      #   Entry point: loads scenes, runs tracking loop
 │   ├── tracker.cpp                   #   Tracker pipeline implementation
 │   ├── track.cpp                     #   Track constructor
-│   ├── gt_detector.cpp               #   JSON scene file parser
+│   ├── gt_detector.cpp               #   Ground-truth detector (reads Frame annotations)
 │   ├── linear_kf.cpp                 #   Kalman Filter predict/update
 │   ├── cost_function.cpp             #   Distance and IoU cost implementations
 │   └── associator.cpp                #   Cost matrix, gating, and Hungarian matching
+├── scripts/                          # Python utilities
+│   ├── export_scene_nuscenes.py      #   Export nuScenes data to scene JSON format
+│   ├── export_gt_detections.py       #   Export GT detections (dataset-agnostic format)
+│   ├── validate_gt_json.py           #   Validate legacy GT JSON files
+│   ├── check_nuscenes.py             #   Verify nuScenes dataset mount
+│   └── evaluate.py                   #   Evaluate tracking results via nuScenes devkit
 ├── configs/
 │   └── MOT_v1.json                   #   v1 configuration
+├── results/
+│   ├── scenes/                       #   Exported scene JSON files (input to tracker)
+│   ├── gt/                           #   GT detection files (dataset-agnostic format)
+│   └── tracking/                     #   Tracker output (timestamped run directories)
 ├── third_party/
 │   └── hungarian-algorithm-cpp/      #   Vendored Hungarian algorithm library
 └── CMakeLists.txt                    #   Build configuration
@@ -141,7 +153,7 @@ Project_MOT/
 
 ## Dependencies
 
-- **C++14** or later
+- **C++17** or later
 - **Eigen** — Linear algebra (state vectors, matrices)
 - **nlohmann/json** — JSON configuration and data parsing
 - **Hungarian algorithm** — Vendored from [mcximing/hungarian-algorithm-cpp](https://github.com/mcximing/hungarian-algorithm-cpp)
@@ -180,20 +192,32 @@ python3 scripts/check_nuscenes.py \
     --version  v1.0-mini
 ```
 
-### Export Ground-Truth Detections
+### Export Scene Files
 
-Extract ground-truth bounding-box annotations from a nuScenes scene into a per-frame JSON file:
+Export nuScenes data into self-contained scene JSON files. Each file includes per-frame ego pose, sensor data paths, calibration, and ground-truth annotations.
+
+Export a single scene:
+
+```bash
+python3 scripts/export_scene_nuscenes.py --scene-index 0
+```
+
+Export all scenes:
+
+```bash
+python3 scripts/export_scene_nuscenes.py --all
+```
+
+Output goes to `results/scenes/` by default.
+
+### Export GT Detections
+
+A dataset-agnostic flat-array GT format used by [SensorLens](https://github.com/nairb36/SensorLens) and evaluation tooling. Each dataset gets its own export script (`export_gt_detections.py` for nuScenes, future `export_gt_waymo.py` for Waymo, etc.) that produces the same canonical format.
 
 ```bash
 python3 scripts/export_gt_detections.py \
     --scene-index 0 \
     --output results/gt/scene_0000.json
-```
-
-Validate the exported file:
-
-```bash
-python3 scripts/validate_gt_json.py --input results/gt/scene_0000.json
 ```
 
 ---
@@ -236,24 +260,49 @@ The script auto-detects which scenes belong to `mini_val` and `mini_train`, conv
 
 ---
 
-### Detection JSON Format
+### Scene JSON Format
+
+Each scene file is a self-contained JSON document with the following structure:
 
 ```json
-[
-  {
-    "frame_id": 0,
-    "sample_token": "...",
-    "timestamp": 1532402927647951,
-    "detections": [
-      {
-        "instance_token": "...",
-        "category_name": "vehicle.car",
+{
+  "scene_name": "scene-0061",
+  "description": "...",
+  "log_token": "...",
+  "num_frames": 39,
+  "calibration": {
+    "LIDAR_TOP": {
+      "extrinsic": {
         "translation": [x, y, z],
-        "size": [w, l, h],
-        "rotation": [w, x, y, z],
-        "yaw": 1.234
+        "rotation": [w, x, y, z]
       }
-    ]
-  }
-]
+    },
+    "CAM_FRONT": { "extrinsic": { "..." } }
+  },
+  "frames": [
+    {
+      "frame_id": 0,
+      "sample_token": "...",
+      "timestamp": 1532402927647951,
+      "ego_pose": {
+        "translation": [x, y, z],
+        "rotation": [w, x, y, z]
+      },
+      "sensor_data": {
+        "LIDAR_TOP": { "file": "samples/LIDAR_TOP/..." },
+        "CAM_FRONT": { "file": "samples/CAM_FRONT/..." }
+      },
+      "annotations": [
+        {
+          "instance_token": "...",
+          "category_name": "vehicle.car",
+          "translation": [x, y, z],
+          "size": [l, w, h],
+          "rotation": [w, x, y, z],
+          "yaw": 1.234
+        }
+      ]
+    }
+  ]
+}
 ```

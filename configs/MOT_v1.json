@@ -1,6 +1,6 @@
 {
     "data": {
-        "gt_dir": "../results/gt"
+        "scene_dir": "../results/scenes"
     },
 
     "detector": {

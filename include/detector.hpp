@@ -1,10 +1,10 @@
 // Abstract interface for producing detections from a data source.
-// v1 implementation reads ground-truth boxes from a JSON file.
-// Designed so LiDAR/camera/BEV detectors can be swapped in later.
+// Each concrete Detector receives a Frame and returns detections.
 
 #pragma once
 
 #include "detection.hpp"
+#include "scene.hpp"
 #include <string>
 #include <nlohmann/json.hpp>
 
@@ -22,13 +22,10 @@ struct DetectorConfig
     }
 };
 
-/// @brief Abstract base class for detection sources; subclass per sensor/input type
 class Detector
-{   
+{
     public:
-    virtual std::vector<Detection> detect(int) = 0;
-    virtual double get_timestamp(int) = 0;
+    virtual std::vector<Detection> detect(const Frame&) = 0;
     virtual ~Detector() = default;
-
 };
 
