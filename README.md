@@ -98,7 +98,7 @@ Each component defines its own **config struct** with sensible defaults. The top
 ### Association
 - **Hungarian algorithm** for optimal bipartite matching
 - **Category gating** — tracks and detections must share the same object class
-- **Distance gating** — pairs beyond a physical displacement threshold (30m, based on 120 mph at 2 Hz) are excluded from consideration
+- **Distance gating** — pairs beyond a configurable displacement threshold are excluded from consideration
 
 ### Track Management
 - Automatic track creation from unmatched detections
