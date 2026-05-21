@@ -5,6 +5,7 @@
 #pragma once
 
 #include "track.hpp"
+#include "scene.hpp"
 #include "detector.hpp"
 #include "motion_model.hpp"
 #include "cost_function.hpp"
@@ -44,10 +45,10 @@ class Tracker
 {
     private:
     std::vector<Track> tracks_;
+    const Scene& scene_;
 
     int next_id_;
     int curr_frame_id_;
-    double curr_timestamp_;
     int kMaxConsecutiveMisses;
 
     // Detection
@@ -81,7 +82,7 @@ class Tracker
     void log_tracker_results();
 
     public:
-    Tracker(std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
+    Tracker(const Scene&, std::unique_ptr<Detector>, std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)>, const TrackerConfig&);
     void tracker_step();
     std::string save_results(const std::string& output_dir, const std::string& scene_name);
 

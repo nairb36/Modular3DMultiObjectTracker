@@ -5,11 +5,12 @@
 #include "tracker.hpp"
 #include <filesystem>
 
-Tracker::Tracker(std::unique_ptr<Detector> detector,
+Tracker::Tracker(const Scene& scene,
+                 std::unique_ptr<Detector> detector,
                  std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory,
-                 const TrackerConfig& config): next_id_(0),
+                 const TrackerConfig& config): scene_(scene),
+                                               next_id_(0),
                                                curr_frame_id_(0),
-                                               curr_timestamp_(0),
                                                kMaxConsecutiveMisses(config.max_consecutive_misses),
                                                detector_(std::move(detector)),
                                                motion_model_factory_(std::move(motion_model_factory)),
@@ -23,13 +24,13 @@ Tracker::Tracker(std::unique_ptr<Detector> detector,
 // Runs the full tracking pipeline for one frame
 void Tracker::tracker_step()
 {
-    reset_per_frame_state(); // resets member variables for current timestep
+    reset_per_frame_state();
     std::cout<<"Completed reset_per_frame_state"<<std::endl;
 
     double dt = get_timestamp();
     std::cout<<"Completed get_timestamp"<<std::endl;
-    
-    get_detections(); // fills in curr_frame_detections_
+
+    get_detections();
     std::cout<<"Completed get_detections"<<std::endl;
 
     predict_tracks_state(dt); // does state prediction based on motion model for each Track in tracks_
@@ -65,25 +66,15 @@ void Tracker::reset_per_frame_state()
 // Fetches detections for the current frame from the detector
 void Tracker::get_detections()
 {
-    curr_frame_detections_ = detector_->detect(curr_frame_id_);
+    curr_frame_detections_ = detector_->detect(scene_.frames[curr_frame_id_]);
 }
 
 
-// Computes dt between current and previous frame timestamps
 double Tracker::get_timestamp()
 {
     if (curr_frame_id_ == 0)
-    {
-        curr_timestamp_ = detector_->get_timestamp(curr_frame_id_);
-        return 0;
-    }
-    else
-    {
-        double prev_timestamp = curr_timestamp_;
-        curr_timestamp_ = detector_->get_timestamp(curr_frame_id_);
-        double dt = curr_timestamp_ - prev_timestamp;
-        return dt;
-    }
+        return 0.0;
+    return scene_.frames[curr_frame_id_].timestamp - scene_.frames[curr_frame_id_ - 1].timestamp;
 }
 
 
@@ -212,7 +203,7 @@ void Tracker::log_tracker_results()
 {
     nlohmann::json frame_entry;
     frame_entry["frame_id"] = curr_frame_id_;
-    frame_entry["timestamp"] = curr_timestamp_;
+    frame_entry["timestamp"] = scene_.frames[curr_frame_id_].timestamp;
 
     nlohmann::json tracks_array = nlohmann::json::array();
     for (const auto& track : tracks_)
