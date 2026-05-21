@@ -80,7 +80,7 @@ struct Scene
             Frame frame;
             frame.frame_id = fj["frame_id"].get<int>();
             frame.sample_token = fj["sample_token"].get<std::string>();
-            frame.timestamp = fj["timestamp"].get<double>();
+            frame.timestamp = fj["timestamp"].get<double>() / 1e6;
 
             auto ep_t = fj["ego_pose"]["translation"].get<std::vector<double>>();
             auto ep_r = fj["ego_pose"]["rotation"].get<std::vector<double>>();
