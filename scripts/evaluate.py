@@ -6,8 +6,8 @@ Converts tracker output to nuScenes submission format and runs the full
 evaluation pipeline (AMOTA, AMOTP, MOTA, MOTP, etc.).
 
 Usage:
-    python3 scripts/evaluate.py results/tracking/scene_0000_results_20260514_013812.json
-    python3 scripts/evaluate.py results/tracking/scene_*_results_*.json
+    python3 scripts/evaluate.py results/tracking/20260516_000431
+    python3 scripts/evaluate.py results/tracking/20260516_000431/scene_0000.json
 """
 
 import argparse
