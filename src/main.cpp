@@ -19,7 +19,7 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    std::string config_path = "../configs/MOT_v1.json";
+    std::string config_path = "../configs/MOT_v2.json";
     std::ifstream config_file(config_path);
     nlohmann::json config = nlohmann::json::parse(config_file);
 

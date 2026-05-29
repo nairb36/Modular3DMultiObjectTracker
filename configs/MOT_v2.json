@@ -1,0 +1,29 @@
+{
+    "data": {
+        "scene_dir": "../results/scenes"
+    },
+
+    "detector": {
+        "data_root": "/workspace/data/nuscenes",
+        "type": "PointPillars",
+        "tracked_categories": ["vehicle", "human"]
+    },
+
+    "motion_model": {
+        "type": "ConstVelocity"
+    },
+
+    "cost_function": {
+        "types": ["distance", "iou"],
+        "weights": [0.5, 0.5],
+        "distance_gate": 12.0
+    },
+
+    "associator": {
+        "distance_gate": 12.0
+    },
+
+    "track_management": {
+        "max_consecutive_misses": 5
+    }
+}
