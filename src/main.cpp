@@ -3,6 +3,7 @@
 
 #include "tracker.hpp"
 #include "gt_detector.hpp"
+#include "pointpillars_detector.hpp"
 #include "linear_kf.hpp"
 
 #include <iostream>
@@ -57,6 +58,10 @@ int main()
         if (tracker_config.detector_config.type == "GT")
         {
             detector = std::make_unique<GTDetector>(tracker_config.detector_config);
+        }
+        else if (tracker_config.detector_config.type == "PointPillars")
+        {
+            detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config);
         }
 
         // Create motion model factory
