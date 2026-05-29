@@ -3,6 +3,12 @@
 
 #include "pointpillars_detector.hpp"
 
+PointPillarsDetector::PointPillarsDetector(const DetectorConfig& config): data_root_(config.data_root),
+                                                                          tracked_categories_(config.tracked_categories)
+{
+    // Define ONNX 
+}
+
 
 std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
 {
@@ -13,11 +19,11 @@ std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
 
     read_lidar_data();
 
-    // void preprocess_lidar_data();
+    // preprocess_lidar_data();
 
-    // void pointpillars_inference();
+    // pointpillars_inference();
 
-    // void postprocess_outputs();
+    // postprocess_outputs();
 
     return detections;
 }
