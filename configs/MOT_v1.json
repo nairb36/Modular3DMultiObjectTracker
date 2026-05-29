@@ -4,6 +4,7 @@
     },
 
     "detector": {
+        "data_root": "/workspace/data/nuscenes",
         "type": "GT",
         "tracked_categories": ["vehicle", "human"]
     },
