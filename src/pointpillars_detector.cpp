@@ -56,6 +56,14 @@ void PointPillarsDetector::preprocess_lidar_data()
 }
 
 
+void PointPillarsDetector::pointpillars_inference()
+{
+    pfe_inference();
+    scatter();
+    backbone_inference();
+}
+
+
 void PointPillarsDetector::range_filter(float x_min, float x_max,
                                         float y_min, float y_max,
                                         float z_min, float z_max)
