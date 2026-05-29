@@ -8,10 +8,13 @@ find_package(nlohmann_json REQUIRED)
 
 include_directories(include third_party/hungarian-algorithm-cpp)
 
+find_library(ONNXRUNTIME_LIB onnxruntime HINTS /usr/local/onnxruntime-linux-x64-1.17.0/lib)
+
 add_executable(mot_tracker
     src/main.cpp
     src/tracker.cpp
     src/gt_detector.cpp
+    src/pointpillars_detector.cpp
     src/associator.cpp
     src/linear_kf.cpp
     src/track.cpp
@@ -19,7 +22,10 @@ add_executable(mot_tracker
     third_party/hungarian-algorithm-cpp/Hungarian.cpp
 )
 
+target_include_directories(mot_tracker PRIVATE /usr/local/onnxruntime-linux-x64-1.17.0/include)
+
 target_link_libraries(mot_tracker
     Eigen3::Eigen
     nlohmann_json::nlohmann_json
+    ${ONNXRUNTIME_LIB}
 )
