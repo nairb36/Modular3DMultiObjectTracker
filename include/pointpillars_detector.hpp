@@ -8,13 +8,22 @@
 
 class PointPillarsDetector : public Detector
 {
-    private:
-    SensorData lidar_top_data_;
-
-    void preprocess_lidar_data();
-    void pointpillars_inference();
-    void postprocess_outputs();
-
     public:
     std::vector<Detection> detect(const Frame&) override;
+    PointPillarsDetector(const DetectorConfig& config);
+
+    private:
+    SensorData lidar_data_;
+    std::string data_root_;
+    std::vector<float> point_cloud_;
+    std::vector<float> voxels_;
+    std::vector<int> voxel_num_points_;
+    std::vector<int> voxel_coords_;
+
+    void read_lidar_data();
+    void preprocess_lidar_data();
+    void range_filter(float x_min, float x_max, float y_min, float y_max, float z_min, float z_max);
+    void voxelize(float x_min, float x_max, float y_min, float y_max, float voxel_x, float voxel_y, int max_points_per_pillar, int max_pillars);
+    void pointpillars_inference();
+    void postprocess_outputs();
 };
