@@ -61,7 +61,7 @@ int main()
         }
         else if (tracker_config.detector_config.type == "PointPillars")
         {
-            detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config);
+            detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config, scene.calibration.at("LIDAR_TOP"));
         }
 
         // Create motion model factory
