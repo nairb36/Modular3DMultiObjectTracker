@@ -227,14 +227,14 @@ void PointPillarsDetector::postprocess_outputs()
     };
 
     std::vector<HeadDef> heads = {
-        make_anchors({{"car",                  {4.63f, 1.97f, 1.74f, -1.78f}}}),
-        make_anchors({{"truck",                {6.93f, 2.51f, 2.84f, -1.60f}},
-                      {"construction_vehicle", {6.37f, 2.85f, 3.19f, -1.51f}}}),
-        make_anchors({{"bus",                  {10.5f, 2.94f, 3.47f, -1.43f}},
-                      {"trailer",              {12.29f,2.90f, 3.87f, -0.95f}}}),
-        make_anchors({{"barrier",              {0.50f, 2.53f, 0.98f, -3.45f}}}),
-        make_anchors({{"motorcycle",           {2.11f, 0.77f, 1.47f, -1.73f}},
-                      {"bicycle",              {1.70f, 0.60f, 1.28f, -1.67f}}}),
+        make_anchors({{"car",                  {4.63f, 1.97f, 1.74f, -0.95f}}}),
+        make_anchors({{"truck",                {6.93f, 2.51f, 2.84f, -0.40f}},
+                      {"construction_vehicle", {6.37f, 2.85f, 3.19f, -0.225f}}}),
+        make_anchors({{"bus",                  {10.5f, 2.94f, 3.47f, -0.085f}},
+                      {"trailer",              {12.29f,2.90f, 3.87f, -0.26f}}}),
+        make_anchors({{"barrier",              {0.50f, 2.53f, 0.98f, -1.67f}}}),
+        make_anchors({{"motorcycle",           {2.11f, 0.77f, 1.47f, -1.03f}},
+                      {"bicycle",              {1.70f, 0.60f, 1.28f, -1.04f}}}),
         make_anchors({{"pedestrian",           {0.73f, 0.67f, 1.77f, -0.73f}},
                       {"traffic_cone",         {0.41f, 0.41f, 1.07f, -1.78f}}}),
     };
@@ -300,8 +300,8 @@ void PointPillarsDetector::postprocess_outputs()
                     float dx = ch(base + 0);
                     float dy = ch(base + 1);
                     float dz = ch(base + 2);
-                    float dw = ch(base + 3);
-                    float dl = ch(base + 4);
+                    float dl = ch(base + 3);
+                    float dw = ch(base + 4);
                     float dh = ch(base + 5);
                     float sin_yaw = ch(base + 6);
                     float cos_yaw = ch(base + 7);
@@ -315,7 +315,7 @@ void PointPillarsDetector::postprocess_outputs()
                     RawDet det;
                     det.x = ax + dx * diag;
                     det.y = ay + dy * diag;
-                    det.z = anchor.z + dz * anchor.h;
+                    det.z = anchor.z + anchor.h / 2 + dz * anchor.h;
                     det.l = anchor.l * std::exp(dl);
                     det.w = anchor.w * std::exp(dw);
                     det.h = anchor.h * std::exp(dh);
@@ -333,24 +333,63 @@ void PointPillarsDetector::postprocess_outputs()
         box_offset += box_ch;
     }
 
-    // NMS per category
-    auto iou_bev = [](const RawDet& a, const RawDet& b) -> float
-    {
-        float a_x1 = a.x - a.l / 2, a_x2 = a.x + a.l / 2;
-        float a_y1 = a.y - a.w / 2, a_y2 = a.y + a.w / 2;
-        float b_x1 = b.x - b.l / 2, b_x2 = b.x + b.l / 2;
-        float b_y1 = b.y - b.w / 2, b_y2 = b.y + b.w / 2;
+    // Rotated BEV NMS
+    struct Pt { float x, y; };
 
-        float inter_x1 = std::max(a_x1, b_x1), inter_x2 = std::min(a_x2, b_x2);
-        float inter_y1 = std::max(a_y1, b_y1), inter_y2 = std::min(a_y2, b_y2);
+    auto get_corners = [](const RawDet& d, Pt out[4]) {
+        float c = std::cos(d.yaw), s = std::sin(d.yaw);
+        float hl = d.l / 2, hw = d.w / 2;
+        out[0] = {d.x + hl*c - hw*s, d.y + hl*s + hw*c};
+        out[1] = {d.x - hl*c - hw*s, d.y - hl*s + hw*c};
+        out[2] = {d.x - hl*c + hw*s, d.y - hl*s - hw*c};
+        out[3] = {d.x + hl*c + hw*s, d.y + hl*s - hw*c};
+    };
 
-        float inter_w = std::max(0.0f, inter_x2 - inter_x1);
-        float inter_h = std::max(0.0f, inter_y2 - inter_y1);
-        float inter_area = inter_w * inter_h;
+    auto cross2d = [](Pt o, Pt a, Pt b) {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    };
 
-        float area_a = a.l * a.w;
-        float area_b = b.l * b.w;
-        return inter_area / (area_a + area_b - inter_area + 1e-6f);
+    auto seg_isect = [](Pt a, Pt b, Pt c, Pt d) -> Pt {
+        float ax = b.x-a.x, ay = b.y-a.y, cx = d.x-c.x, cy = d.y-c.y;
+        float t = ((c.x-a.x)*cy - (c.y-a.y)*cx) / (ax*cy - ay*cx);
+        return {a.x + t*ax, a.y + t*ay};
+    };
+
+    auto poly_area = [](const std::vector<Pt>& p) -> float {
+        float a = 0;
+        int n = p.size();
+        for (int i = 0; i < n; i++) {
+            int j = (i + 1) % n;
+            a += p[i].x * p[j].y - p[j].x * p[i].y;
+        }
+        return std::abs(a) / 2;
+    };
+
+    auto iou_bev = [&](const RawDet& a, const RawDet& b) -> float {
+        Pt ca[4], cb[4];
+        get_corners(a, ca);
+        get_corners(b, cb);
+
+        std::vector<Pt> poly(cb, cb + 4);
+        for (int i = 0; i < 4 && !poly.empty(); i++) {
+            std::vector<Pt> input = poly;
+            poly.clear();
+            Pt e0 = ca[i], e1 = ca[(i + 1) % 4];
+            for (int j = 0, n = input.size(); j < n; j++) {
+                Pt cur = input[j], prv = input[(j + n - 1) % n];
+                float cc = cross2d(e0, e1, cur), cp = cross2d(e0, e1, prv);
+                if (cc >= 0) {
+                    if (cp < 0) poly.push_back(seg_isect(prv, cur, e0, e1));
+                    poly.push_back(cur);
+                } else if (cp >= 0) {
+                    poly.push_back(seg_isect(prv, cur, e0, e1));
+                }
+            }
+        }
+
+        float inter = poly_area(poly);
+        float area_a = a.l * a.w, area_b = b.l * b.w;
+        return inter / (area_a + area_b - inter + 1e-6f);
     };
 
     std::sort(all_dets.begin(), all_dets.end(),
@@ -378,7 +417,7 @@ void PointPillarsDetector::postprocess_outputs()
         d.category_name_ = all_dets[i].category;
         d.confidence_ = all_dets[i].score;
         d.position_ = Eigen::Vector3d(all_dets[i].x, all_dets[i].y, all_dets[i].z);
-        d.bbox_dims_ = Eigen::Vector3d(all_dets[i].l, all_dets[i].w, all_dets[i].h);
+        d.bbox_dims_ = Eigen::Vector3d(all_dets[i].w, all_dets[i].l, all_dets[i].h);
         d.yaw_ = all_dets[i].yaw;
         d.rotation_quaternion_ = Eigen::Vector4d(
             std::cos(all_dets[i].yaw / 2), 0, 0, std::sin(all_dets[i].yaw / 2));
