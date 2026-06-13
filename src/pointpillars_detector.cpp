@@ -6,8 +6,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include <iostream>
-#include <numeric>
-#include <random>
 
 PointPillarsDetector::PointPillarsDetector(const DetectorConfig& config, const Calibration& lidar_calib)
     : data_root_(config.data_root),
@@ -37,30 +35,6 @@ std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
     preprocess_lidar_data();
     pointpillars_inference();
     postprocess_outputs();
-
-    // Temp: dump raw lidar-frame detections before transforms
-    {
-        nlohmann::json raw;
-        raw["num_detections"] = detections_.size();
-        nlohmann::json arr = nlohmann::json::array();
-        for (const auto& d : detections_) {
-            nlohmann::json j;
-            j["class"] = d.category_name_;
-            j["score"] = d.confidence_;
-            j["x"] = d.position_.x();
-            j["y"] = d.position_.y();
-            j["z"] = d.position_.z();
-            j["yaw"] = d.yaw_;
-            j["w"] = d.bbox_dims_.x();
-            j["l"] = d.bbox_dims_.y();
-            j["h"] = d.bbox_dims_.z();
-            arr.push_back(j);
-        }
-        raw["detections"] = arr;
-        std::ofstream rawf("../results/temp/pp_raw_lidar.json");
-        rawf << raw.dump(2);
-    }
-
     transform_to_ego();
     transform_to_global(frame.ego_pose);
 
@@ -98,17 +72,6 @@ void PointPillarsDetector::preprocess_lidar_data()
     const int max_pillars = 30000;
 
     range_filter(x_min, x_max, y_min, y_max, z_min, z_max);
-
-    int num_points = point_cloud_.size() / 5;
-    std::vector<int> indices(num_points);
-    std::iota(indices.begin(), indices.end(), 0);
-    std::mt19937 rng(0);
-    std::shuffle(indices.begin(), indices.end(), rng);
-    std::vector<float> shuffled(point_cloud_.size());
-    for (int i = 0; i < num_points; i++)
-        std::copy_n(point_cloud_.data() + indices[i] * 5, 5, shuffled.data() + i * 5);
-    point_cloud_ = std::move(shuffled);
-
     voxelize(x_min, x_max, y_min, y_max, voxel_x, voxel_y, max_points_per_pillar, max_pillars);
 }
 
