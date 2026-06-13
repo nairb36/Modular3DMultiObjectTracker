@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <unordered_map>
 #include <iostream>
+#include <numeric>
+#include <random>
 
 PointPillarsDetector::PointPillarsDetector(const DetectorConfig& config, const Calibration& lidar_calib)
     : data_root_(config.data_root),
@@ -35,6 +37,30 @@ std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
     preprocess_lidar_data();
     pointpillars_inference();
     postprocess_outputs();
+
+    // Temp: dump raw lidar-frame detections before transforms
+    {
+        nlohmann::json raw;
+        raw["num_detections"] = detections_.size();
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& d : detections_) {
+            nlohmann::json j;
+            j["class"] = d.category_name_;
+            j["score"] = d.confidence_;
+            j["x"] = d.position_.x();
+            j["y"] = d.position_.y();
+            j["z"] = d.position_.z();
+            j["yaw"] = d.yaw_;
+            j["w"] = d.bbox_dims_.x();
+            j["l"] = d.bbox_dims_.y();
+            j["h"] = d.bbox_dims_.z();
+            arr.push_back(j);
+        }
+        raw["detections"] = arr;
+        std::ofstream rawf("../results/temp/pp_raw_lidar.json");
+        rawf << raw.dump(2);
+    }
+
     transform_to_ego();
     transform_to_global(frame.ego_pose);
 
@@ -72,6 +98,17 @@ void PointPillarsDetector::preprocess_lidar_data()
     const int max_pillars = 30000;
 
     range_filter(x_min, x_max, y_min, y_max, z_min, z_max);
+
+    int num_points = point_cloud_.size() / 5;
+    std::vector<int> indices(num_points);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::mt19937 rng(0);
+    std::shuffle(indices.begin(), indices.end(), rng);
+    std::vector<float> shuffled(point_cloud_.size());
+    for (int i = 0; i < num_points; i++)
+        std::copy_n(point_cloud_.data() + indices[i] * 5, 5, shuffled.data() + i * 5);
+    point_cloud_ = std::move(shuffled);
+
     voxelize(x_min, x_max, y_min, y_max, voxel_x, voxel_y, max_points_per_pillar, max_pillars);
 }
 
@@ -303,8 +340,8 @@ void PointPillarsDetector::postprocess_outputs()
                     float dl = ch(base + 3);
                     float dw = ch(base + 4);
                     float dh = ch(base + 5);
-                    float sin_yaw = ch(base + 6);
-                    float cos_yaw = ch(base + 7);
+                    float cos_yaw = ch(base + 6);
+                    float sin_yaw = ch(base + 7);
 
                     auto& anchor = head.anchors[a];
                     float diag = std::sqrt(anchor.l * anchor.l + anchor.w * anchor.w);
@@ -320,6 +357,7 @@ void PointPillarsDetector::postprocess_outputs()
                     det.w = anchor.w * std::exp(dw);
                     det.h = anchor.h * std::exp(dh);
                     det.yaw = std::atan2(sin_yaw, cos_yaw) + anchor.rotation;
+
                     det.score = max_score;
 
                     int class_per_ori = a / 2;
@@ -569,8 +607,8 @@ void PointPillarsDetector::voxelize(float x_min, float x_max,
         voxels_[offset + 0] = point_cloud_[i * 5 + 0];
         voxels_[offset + 1] = point_cloud_[i * 5 + 1];
         voxels_[offset + 2] = point_cloud_[i * 5 + 2];
-        voxels_[offset + 3] = point_cloud_[i * 5 + 3] / 255.0f;
-        voxels_[offset + 4] = 0.0f;
+        voxels_[offset + 3] = point_cloud_[i * 5 + 3];
+        voxels_[offset + 4] = point_cloud_[i * 5 + 4];
         voxel_num_points_[pillar_idx]++;
     }
 
