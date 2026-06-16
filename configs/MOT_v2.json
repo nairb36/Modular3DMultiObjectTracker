@@ -1,11 +1,11 @@
 {
     "data": {
         "scene_dir": "../results/scenes",
-        "detections_dir": "../results/gt"
+        "detections_dir": "../results/pointpillars_detections"
     },
 
     "detector": {
-        "type": "GT",
+        "type": "PointPillars",
         "tracked_categories": ["vehicle", "human"]
     },
 
