@@ -3,6 +3,7 @@
 
 #include "tracker.hpp"
 #include "gt_detector.hpp"
+#include "pointpillars_detector.hpp"
 #include "linear_kf.hpp"
 
 #include <iostream>
@@ -23,6 +24,7 @@ int main()
     nlohmann::json config = nlohmann::json::parse(config_file);
 
     std::string scene_dir = config["data"]["scene_dir"];
+    std::string detections_dir = config["data"]["detections_dir"];
     TrackerConfig tracker_config = TrackerConfig::from_json(config);
 
     // Create timestamped run folder
@@ -52,11 +54,18 @@ int main()
         Scene scene = Scene::from_json(scene_path);
         std::cout << "\n=== " << scene.scene_name << " (" << scene.num_frames() << " frames) ===" << std::endl;
 
+        std::string scene_stem = fs::path(scene_path).stem().string();
+        std::string detections_file = detections_dir + "/" + scene_stem + ".json";
+
         // Create detector
         std::unique_ptr<Detector> detector;
         if (tracker_config.detector_config.type == "GT")
         {
-            detector = std::make_unique<GTDetector>(tracker_config.detector_config);
+            detector = std::make_unique<GTDetector>(tracker_config.detector_config, detections_file);
+        }
+        else if (tracker_config.detector_config.type == "PointPillars")
+        {
+            detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config, detections_file);
         }
 
         // Create motion model factory
@@ -70,7 +79,6 @@ int main()
         }
 
         // Run tracker
-        std::string scene_stem = fs::path(scene_path).stem().string();
         Tracker mot_tracker(scene, std::move(detector), std::move(motion_model_factory), tracker_config);
         for (int i = 0; i < scene.num_frames(); i++)
         {

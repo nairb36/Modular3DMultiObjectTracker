@@ -1,13 +1,13 @@
-#include "gt_detector.hpp"
+#include "pointpillars_detector.hpp"
 #include <fstream>
 
-GTDetector::GTDetector(const DetectorConfig& config, const std::string& detections_file)
+PointPillarsDetector::PointPillarsDetector(const DetectorConfig& config, const std::string& detections_file)
     : detections_file_(detections_file),
       tracked_categories_(config.tracked_categories)
 {
 }
 
-std::vector<Detection> GTDetector::detect(const Frame& frame)
+std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
 {
     std::vector<Detection> detections;
 
@@ -21,6 +21,10 @@ std::vector<Detection> GTDetector::detect(const Frame& frame)
 
         for (const auto& dj : frame_json["detections"])
         {
+            float score = dj["score"].get<float>();
+            if (score < PP_SCORE_THRESHOLD)
+                continue;
+
             std::string category = dj["category_name"].get<std::string>();
             if (!is_tracked_category(category))
                 continue;
@@ -31,7 +35,7 @@ std::vector<Detection> GTDetector::detect(const Frame& frame)
 
             Detection det;
             det.category_name_ = category;
-            det.confidence_ = 1.0f;
+            det.confidence_ = score;
             det.position_ = Eigen::Vector3d(t[0], t[1], t[2]);
             det.bbox_dims_ = Eigen::Vector3d(s[0], s[1], s[2]);
             det.rotation_quaternion_ = Eigen::Vector4d(r[0], r[1], r[2], r[3]);
@@ -45,7 +49,7 @@ std::vector<Detection> GTDetector::detect(const Frame& frame)
     return detections;
 }
 
-bool GTDetector::is_tracked_category(const std::string& category_name)
+bool PointPillarsDetector::is_tracked_category(const std::string& category_name)
 {
     for (const auto& prefix : tracked_categories_)
     {

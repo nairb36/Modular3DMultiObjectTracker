@@ -3,10 +3,12 @@
 #include "detector.hpp"
 #include <string>
 
-class GTDetector : public Detector
+constexpr float PP_SCORE_THRESHOLD = 0.5f;
+
+class PointPillarsDetector : public Detector
 {
     public:
-    GTDetector(const DetectorConfig& config, const std::string& detections_file);
+    PointPillarsDetector(const DetectorConfig& config, const std::string& detections_file);
     std::vector<Detection> detect(const Frame&) override;
 
     private:
