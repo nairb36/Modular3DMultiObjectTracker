@@ -1,7 +1,7 @@
 {
     "data": {
         "scene_dir": "../results/scenes",
-        "detections_dir": "../results/pointpillars_detections"
+        "detections_dir": "../models/pointpillars/precomputed_detections"
     },
 
     "detector": {
