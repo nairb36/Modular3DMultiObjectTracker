@@ -22,6 +22,7 @@ class LinearKF: public MotionModel
     LinearKF(Eigen::Vector3d);
     Eigen::Vector3d get_position() const;
     Eigen::MatrixXd get_covariance() const;
+    Innovation compute_innovation(const Eigen::VectorXd& z) const;
     double get_yaw() const;
     void predict(double dt);
     void update(const Eigen::VectorXd& measurement, const double yaw);
