@@ -20,12 +20,19 @@ struct MotionModelConfig
     }
 };
 
+struct Innovation
+{
+    Eigen::VectorXd y;  // z - H*x
+    Eigen::MatrixXd S;  // H*P*H' + R
+};
+
 class MotionModel
 {
     public:
     virtual Eigen::Vector3d get_position() const = 0;
     virtual Eigen::MatrixXd get_covariance() const = 0;
     virtual double get_yaw() const = 0;
+    virtual Innovation compute_innovation(const Eigen::VectorXd& z) const = 0;
     virtual void predict(double dt) = 0;
     virtual void update(const Eigen::VectorXd& measurement, const double yaw) = 0;
     virtual ~MotionModel() = default;
