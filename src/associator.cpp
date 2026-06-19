@@ -3,7 +3,8 @@
 
 #include "associator.hpp"
 
-Associator::Associator(const AssociatorConfig& config): kDistanceGate(config.distance_gate)
+Associator::Associator(const AssociatorConfig& config): kMotionFeasibilityGate(config.motion_feasibility_gate),
+                                                        kMahalanobisGate(config.mahalanobis_gate)
 {
 
 }
@@ -36,10 +37,20 @@ bool Associator::apply_gating_rules(const Track& track, const Detection& detecti
         return false;
     }
 
-    // Gate 2: are tracks and detections very far apart? (beyond physical limits)
+    // Gate 2: Motion Feasibility — could the object physically have moved this far?
     Eigen::Vector3d diff_vector = track.motion_model_->get_position() - detection.position_;
     double distance = diff_vector.norm();
-    if (distance > kDistanceGate)
+    if (distance > kMotionFeasibilityGate)
+    {
+        return false;
+    }
+
+    // Gate 3: Mahalanobis Gating
+    Innovation innovation_struct = track.motion_model_->compute_innovation(detection.position_);
+    Eigen::VectorXd y = innovation_struct.y;
+    Eigen::MatrixXd S = innovation_struct.S;
+    double mahalanobis_distance = y.transpose()*S.inverse()*y;
+    if (mahalanobis_distance > kMahalanobisGate)
     {
         return false;
     }
