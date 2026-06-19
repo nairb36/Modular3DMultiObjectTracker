@@ -1,11 +1,11 @@
 {
     "data": {
-        "scene_dir": "../results/scenes",
-        "detections_dir": "../models/pointpillars/precomputed_detections"
+        "scene_dir": "../results/scenes"
     },
 
     "detector": {
-        "type": "PointPillars",
+        "data_root": "/workspace/data/nuscenes",
+        "type": "PointPillars_runtime",
         "tracked_categories": ["vehicle", "human"]
     },
 
