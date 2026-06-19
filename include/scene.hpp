@@ -13,9 +13,17 @@ struct EgoPose
     Eigen::Vector4d rotation;
 };
 
+struct Sweep
+{
+    std::string file;
+    double timestamp;
+    EgoPose ego_pose;
+};
+
 struct SensorData
 {
     std::string file;
+    std::vector<Sweep> sweeps;
 };
 
 struct Calibration
@@ -91,6 +99,20 @@ struct Scene
             {
                 SensorData sd;
                 sd.file = sd_json["file"].get<std::string>();
+                if (sd_json.contains("sweeps"))
+                {
+                    for (auto& sw_json : sd_json["sweeps"])
+                    {
+                        Sweep sw;
+                        sw.file = sw_json["file"].get<std::string>();
+                        sw.timestamp = sw_json["timestamp"].get<double>();
+                        auto sw_t = sw_json["ego_pose"]["translation"].get<std::vector<double>>();
+                        auto sw_r = sw_json["ego_pose"]["rotation"].get<std::vector<double>>();
+                        sw.ego_pose.translation = Eigen::Vector3d(sw_t[0], sw_t[1], sw_t[2]);
+                        sw.ego_pose.rotation = Eigen::Vector4d(sw_r[0], sw_r[1], sw_r[2], sw_r[3]);
+                        sd.sweeps.push_back(std::move(sw));
+                    }
+                }
                 frame.sensor_data[channel] = sd;
             }
 

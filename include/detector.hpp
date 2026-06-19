@@ -9,7 +9,7 @@
 #include <nlohmann/json.hpp>
 
 struct DetectorConfig
-{   
+{
     std::string data_root;
     std::string type;
     std::vector<std::string> tracked_categories;
@@ -17,7 +17,8 @@ struct DetectorConfig
     static DetectorConfig from_json(const nlohmann::json& j)
     {
         DetectorConfig cfg;
-        cfg.data_root = j["data_root"].get<std::string>();
+        if (j.contains("data_root"))
+            cfg.data_root = j["data_root"].get<std::string>();
         cfg.type = j["type"].get<std::string>();
         cfg.tracked_categories = j["tracked_categories"].get<std::vector<std::string>>();
         return cfg;

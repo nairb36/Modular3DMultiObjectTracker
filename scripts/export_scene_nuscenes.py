@@ -77,6 +77,24 @@ def build_calibration(nusc, scene):
     return calibration
 
 
+def get_lidar_sweeps(nusc, lidar_sd, max_sweeps=9):
+    """Collect up to max_sweeps previous non-keyframe lidar scans."""
+    sweeps = []
+    sd = nusc.get("sample_data", lidar_sd["prev"]) if lidar_sd["prev"] else None
+    while sd is not None and len(sweeps) < max_sweeps:
+        ego = nusc.get("ego_pose", sd["ego_pose_token"])
+        sweeps.append({
+            "file": sd["filename"],
+            "timestamp": sd["timestamp"],
+            "ego_pose": {
+                "translation": list(ego["translation"]),
+                "rotation": list(ego["rotation"]),
+            },
+        })
+        sd = nusc.get("sample_data", sd["prev"]) if sd["prev"] else None
+    return sweeps
+
+
 def export_frame(nusc, sample, frame_id):
     """Export a single sample (keyframe) into our frame schema."""
     # Use LIDAR_TOP ego_pose as the reference pose for the frame
@@ -91,6 +109,8 @@ def export_frame(nusc, sample, frame_id):
         if sd["height"] > 0:
             entry["width"] = sd["width"]
             entry["height"] = sd["height"]
+        if channel == "LIDAR_TOP":
+            entry["sweeps"] = get_lidar_sweeps(nusc, sd)
         sensor_data[channel] = entry
 
     # GT annotations

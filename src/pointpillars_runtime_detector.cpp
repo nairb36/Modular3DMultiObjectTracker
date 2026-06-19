@@ -1,13 +1,11 @@
-// Concrete Implementation of PointPillars 3D object detection model.
-// PointPillars ONNX model used for inference
-
 #include "pointpillars_runtime_detector.hpp"
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 #include <unordered_map>
 #include <iostream>
 
-PointPillarsRuntimeDetector::PointPillarsDetector(const DetectorConfig& config, const Calibration& lidar_calib)
+PointPillarsRuntimeDetector::PointPillarsRuntimeDetector(const DetectorConfig& config, const Calibration& lidar_calib)
     : data_root_(config.data_root),
       tracked_categories_(config.tracked_categories),
       lidar_calib_(lidar_calib),
@@ -24,63 +22,178 @@ PointPillarsRuntimeDetector::PointPillarsDetector(const DetectorConfig& config, 
 }
 
 
+static Eigen::Matrix4d make_transform(const Eigen::Vector4d& quat, const Eigen::Vector3d& trans)
+{
+    double w = quat[0], x = quat[1], y = quat[2], z = quat[3];
+    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
+    T(0,0) = 1-2*(y*y+z*z); T(0,1) = 2*(x*y-w*z);   T(0,2) = 2*(x*z+w*y);
+    T(1,0) = 2*(x*y+w*z);   T(1,1) = 1-2*(x*x+z*z); T(1,2) = 2*(y*z-w*x);
+    T(2,0) = 2*(x*z-w*y);   T(2,1) = 2*(y*z+w*x);   T(2,2) = 1-2*(x*x+y*y);
+    T(0,3) = trans[0]; T(1,3) = trans[1]; T(2,3) = trans[2];
+    return T;
+}
+
+
 std::vector<Detection> PointPillarsRuntimeDetector::detect(const Frame& frame)
 {
-    std::vector<Detection> detections;
-
-    lidar_data_ = frame.sensor_data.at("LIDAR_TOP");
-    std::cout<<"Lidar data file: "<<lidar_data_.file<<std::endl;
-
-    read_lidar_data();
-    preprocess_lidar_data();
-    pointpillars_inference();
-    postprocess_outputs();
+    accumulate_sweeps(frame);
+    preprocess();
+    pfe_inference();
+    scatter();
+    backbone_inference();
+    postprocess();
     transform_to_ego();
     transform_to_global(frame.ego_pose);
 
-    std::cout<<"Num Detections = "<<detections_.size()<<std::endl;
+    std::cout << "Num Detections = " << detections_.size() << std::endl;
     return detections_;
 }
 
 
-void PointPillarsRuntimeDetector::read_lidar_data()
+void PointPillarsRuntimeDetector::accumulate_sweeps(const Frame& frame)
 {
-    std::string path = data_root_ + "/" + lidar_data_.file;
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
+    point_cloud_.clear();
 
-    int num_fields = 5; // x,y,z,i,ring
-    int num_points = size / (num_fields * sizeof(float));
-    point_cloud_.resize(num_points * num_fields);
-    file.read(reinterpret_cast<char*>(point_cloud_.data()), size);
+    auto load_bin = [&](const std::string& file) -> std::vector<float>
+    {
+        std::string path = data_root_ + "/" + file;
+        std::ifstream f(path, std::ios::binary | std::ios::ate);
+        std::streamsize size = f.tellg();
+        f.seekg(0, std::ios::beg);
+        int num_fields = 5;
+        int num_points = size / (num_fields * sizeof(float));
+        std::vector<float> raw(num_points * num_fields);
+        f.read(reinterpret_cast<char*>(raw.data()), size);
+        return raw;
+    };
 
+    const SensorData& lidar = frame.sensor_data.at("LIDAR_TOP");
+
+    // Current keyframe: take x,y,z,intensity, set time_lag=0
+    {
+        auto raw = load_bin(lidar.file);
+        int np = raw.size() / 5;
+        for (int i = 0; i < np; i++)
+        {
+            point_cloud_.push_back(raw[i*5 + 0]);
+            point_cloud_.push_back(raw[i*5 + 1]);
+            point_cloud_.push_back(raw[i*5 + 2]);
+            point_cloud_.push_back(raw[i*5 + 3]);
+            point_cloud_.push_back(0.0f);
+        }
+    }
+
+    // Compute current frame transforms
+    Eigen::Matrix4d T_cur_lidar_to_ego = make_transform(lidar_calib_.rotation, lidar_calib_.translation);
+    Eigen::Matrix4d T_cur_ego_to_global = make_transform(frame.ego_pose.rotation, frame.ego_pose.translation);
+    Eigen::Matrix4d T_global_to_cur_sensor = (T_cur_ego_to_global * T_cur_lidar_to_ego).inverse();
+
+    double cur_timestamp = frame.timestamp * 1e6;
+
+    // Previous sweeps
+    for (const auto& sweep : lidar.sweeps)
+    {
+        auto raw = load_bin(sweep.file);
+        int np = raw.size() / 5;
+
+        Eigen::Matrix4d T_sw_ego_to_global = make_transform(sweep.ego_pose.rotation, sweep.ego_pose.translation);
+        Eigen::Matrix4d T_sw_lidar_to_ego = T_cur_lidar_to_ego; // calibration is constant per scene
+        Eigen::Matrix4d T = T_global_to_cur_sensor * T_sw_ego_to_global * T_sw_lidar_to_ego;
+
+        float time_lag = static_cast<float>((cur_timestamp - sweep.timestamp) / 1e6);
+
+        for (int i = 0; i < np; i++)
+        {
+            float x = raw[i*5 + 0];
+            float y = raw[i*5 + 1];
+            float z = raw[i*5 + 2];
+            float intensity = raw[i*5 + 3];
+
+            // Remove ego-vehicle points
+            if (std::abs(x) < 1.0f && std::abs(y) < 1.0f)
+                continue;
+
+            Eigen::Vector4d pt(x, y, z, 1.0);
+            Eigen::Vector4d pt_cur = T * pt;
+
+            point_cloud_.push_back(static_cast<float>(pt_cur[0]));
+            point_cloud_.push_back(static_cast<float>(pt_cur[1]));
+            point_cloud_.push_back(static_cast<float>(pt_cur[2]));
+            point_cloud_.push_back(intensity);
+            point_cloud_.push_back(time_lag);
+        }
+    }
+
+    std::cout << "Accumulated " << point_cloud_.size() / 5 << " points from "
+              << 1 + lidar.sweeps.size() << " sweeps" << std::endl;
 }
 
 
-void PointPillarsRuntimeDetector::preprocess_lidar_data()
+void PointPillarsRuntimeDetector::preprocess()
 {
-    const float x_min = -51.2f;
-    const float x_max = 51.2f;
-    const float y_min = -51.2f;
-    const float y_max = 51.2f;
-    const float z_min = -5.0f;
-    const float z_max = 3.0f;
-    const float voxel_x = 0.2f;
-    const float voxel_y = 0.2f;
+    const float x_min = -51.2f, x_max = 51.2f;
+    const float y_min = -51.2f, y_max = 51.2f;
+    const float z_min = -5.0f, z_max = 3.0f;
+    const float voxel_x = 0.2f, voxel_y = 0.2f;
     const int max_points_per_pillar = 20;
     const int max_pillars = 30000;
+    const int num_features = 5;
+    const int grid_x_size = 512;
+    const int grid_y_size = 512;
 
-    range_filter(x_min, x_max, y_min, y_max, z_min, z_max);
-    voxelize(x_min, x_max, y_min, y_max, voxel_x, voxel_y, max_points_per_pillar, max_pillars);
-}
+    // Range filter + voxelize in one pass
+    std::unordered_map<int, int> grid_to_pillar;
+    voxels_.assign(max_pillars * max_points_per_pillar * num_features, 0.0f);
+    voxel_num_points_.clear();
+    voxel_coords_.clear();
 
+    int num_points = point_cloud_.size() / num_features;
+    int num_pillars = 0;
 
-void PointPillarsRuntimeDetector::pointpillars_inference()
-{
-    pfe_inference();
-    scatter();
-    backbone_inference();
+    for (int i = 0; i < num_points; i++)
+    {
+        float x = point_cloud_[i*5 + 0];
+        float y = point_cloud_[i*5 + 1];
+        float z = point_cloud_[i*5 + 2];
+
+        if (x < x_min || x > x_max || y < y_min || y > y_max || z < z_min || z > z_max)
+            continue;
+
+        int gx = static_cast<int>((x - x_min) / voxel_x);
+        int gy = static_cast<int>((y - y_min) / voxel_y);
+        if (gx < 0 || gx >= grid_x_size || gy < 0 || gy >= grid_y_size)
+            continue;
+
+        int grid_key = gy * grid_x_size + gx;
+        int pillar_idx;
+
+        if (grid_to_pillar.find(grid_key) == grid_to_pillar.end())
+        {
+            if (num_pillars >= max_pillars)
+                continue;
+            pillar_idx = num_pillars;
+            grid_to_pillar[grid_key] = pillar_idx;
+            voxel_num_points_.push_back(0);
+            voxel_coords_.insert(voxel_coords_.end(), {0, 0, gy, gx});
+            num_pillars++;
+        }
+        else
+        {
+            pillar_idx = grid_to_pillar[grid_key];
+        }
+
+        int pt_count = voxel_num_points_[pillar_idx];
+        if (pt_count >= max_points_per_pillar)
+            continue;
+
+        int offset = (pillar_idx * max_points_per_pillar + pt_count) * num_features;
+        for (int f = 0; f < num_features; f++)
+            voxels_[offset + f] = point_cloud_[i*5 + f];
+        voxel_num_points_[pillar_idx]++;
+    }
+
+    voxels_.resize(num_pillars * max_points_per_pillar * num_features);
+    num_pillars_ = num_pillars;
 }
 
 
@@ -88,7 +201,6 @@ void PointPillarsRuntimeDetector::pfe_inference()
 {
     const int max_points_per_pillar = 20;
     const int num_features = 5;
-    num_pillars_ = voxel_num_points_.size();
 
     std::vector<int64_t> voxels_shape = {num_pillars_, max_points_per_pillar, num_features};
     std::vector<int64_t> num_points_shape = {num_pillars_};
@@ -96,13 +208,11 @@ void PointPillarsRuntimeDetector::pfe_inference()
 
     auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
-    std::vector<int64_t> voxel_num_points_i64(voxel_num_points_.begin(), voxel_num_points_.end());
-
     Ort::Value voxels_tensor = Ort::Value::CreateTensor<float>(
         memory_info, voxels_.data(), voxels_.size(), voxels_shape.data(), voxels_shape.size());
 
     Ort::Value num_points_tensor = Ort::Value::CreateTensor<int64_t>(
-        memory_info, voxel_num_points_i64.data(), voxel_num_points_i64.size(),
+        memory_info, voxel_num_points_.data(), voxel_num_points_.size(),
         num_points_shape.data(), num_points_shape.size());
 
     Ort::Value coords_tensor = Ort::Value::CreateTensor<int>(
@@ -132,11 +242,8 @@ void PointPillarsRuntimeDetector::pfe_inference()
 
 void PointPillarsRuntimeDetector::scatter()
 {
-    const int C = 64;
-    const int H = 512;
-    const int W = 512;
-
-    spatial_features_.assign(1 * C * H * W, 0.0f);
+    const int C = 64, H = 512, W = 512;
+    spatial_features_.assign(C * H * W, 0.0f);
 
     for (int p = 0; p < num_pillars_; p++)
     {
@@ -144,9 +251,7 @@ void PointPillarsRuntimeDetector::scatter()
         int gx = voxel_coords_[p * 4 + 3];
 
         for (int c = 0; c < C; c++)
-        {
             spatial_features_[c * H * W + gy * W + gx] = pillar_features_[p * C + c];
-        }
     }
 }
 
@@ -183,60 +288,59 @@ void PointPillarsRuntimeDetector::backbone_inference()
 
     cls_preds_.assign(cls_data, cls_data + cls_total);
     box_preds_.assign(box_data, box_data + box_total);
-
-    feat_h_ = cls_shape[2];
-    feat_w_ = cls_shape[3];
 }
 
 
-void PointPillarsRuntimeDetector::postprocess_outputs()
+void PointPillarsRuntimeDetector::postprocess()
 {
-    const float score_threshold = 0.3f;
-    const float nms_threshold = 0.2f;
-    const float x_min = -51.2f, y_min = -51.2f;
-    const float pixel_size = 0.8f;
+    const float score_threshold = 0.1f;
+    const float nms_iou_threshold = 0.2f;
+    const int nms_pre_maxsize = 1000;
+    const int nms_post_maxsize = 83;
+    const int H = 128, W = 128;
     const int box_code_size = 10;
+
+    const float x_stride = 102.4f / 127.0f;
+    const float y_stride = 102.4f / 127.0f;
 
     struct AnchorDef {
         std::string name;
-        float l, w, h, z;
+        float dx, dy, dz, z_center;
         float rotation;
     };
 
     struct HeadDef {
-        int cls_channels;
-        int num_anchors;
         int num_classes;
+        int num_anchors;
         std::vector<std::string> class_names;
         std::vector<AnchorDef> anchors;
     };
 
-    auto make_anchors = [](const std::vector<std::pair<std::string, std::array<float,4>>>& classes) -> HeadDef
+    auto make_head = [](const std::vector<std::tuple<std::string, float, float, float, float>>& classes) -> HeadDef
     {
         HeadDef head;
         head.num_classes = classes.size();
         head.num_anchors = classes.size() * 2;
-        head.cls_channels = head.num_anchors * head.num_classes;
-        for (auto& [name, dims] : classes)
+        for (auto& [name, dx, dy, dz, zc] : classes)
         {
             head.class_names.push_back(name);
-            head.anchors.push_back({name, dims[0], dims[1], dims[2], dims[3], 0.0f});
-            head.anchors.push_back({name, dims[0], dims[1], dims[2], dims[3], 1.5708f});
+            head.anchors.push_back({name, dx, dy, dz, zc, 0.0f});
+            head.anchors.push_back({name, dx, dy, dz, zc, 1.5708f});
         }
         return head;
     };
 
     std::vector<HeadDef> heads = {
-        make_anchors({{"car",                  {4.63f, 1.97f, 1.74f, -0.95f}}}),
-        make_anchors({{"truck",                {6.93f, 2.51f, 2.84f, -0.40f}},
-                      {"construction_vehicle", {6.37f, 2.85f, 3.19f, -0.225f}}}),
-        make_anchors({{"bus",                  {10.5f, 2.94f, 3.47f, -0.085f}},
-                      {"trailer",              {12.29f,2.90f, 3.87f, -0.26f}}}),
-        make_anchors({{"barrier",              {0.50f, 2.53f, 0.98f, -1.67f}}}),
-        make_anchors({{"motorcycle",           {2.11f, 0.77f, 1.47f, -1.03f}},
-                      {"bicycle",              {1.70f, 0.60f, 1.28f, -1.04f}}}),
-        make_anchors({{"pedestrian",           {0.73f, 0.67f, 1.77f, -0.73f}},
-                      {"traffic_cone",         {0.41f, 0.41f, 1.07f, -1.78f}}}),
+        make_head({{"car",                  4.63f, 1.97f, 1.74f, -0.0800f}}),
+        make_head({{"truck",                6.93f, 2.51f, 2.84f,  0.8200f},
+                   {"construction_vehicle", 6.37f, 2.85f, 3.19f,  1.3700f}}),
+        make_head({{"bus",                  10.5f, 2.94f, 3.47f,  1.6500f},
+                   {"trailer",              12.29f,2.90f, 3.87f,  2.0500f}}),
+        make_head({{"barrier",              0.50f, 2.53f, 0.98f, -0.8400f}}),
+        make_head({{"motorcycle",           2.11f, 0.77f, 1.47f, -0.3500f},
+                   {"bicycle",              1.70f, 0.60f, 1.28f, -0.5400f}}),
+        make_head({{"pedestrian",           0.73f, 0.67f, 1.77f, -0.0500f},
+                   {"traffic_cone",         0.41f, 0.41f, 1.07f, -0.7500f}}),
     };
 
     std::unordered_map<std::string, std::string> class_to_category = {
@@ -253,93 +357,16 @@ void PointPillarsRuntimeDetector::postprocess_outputs()
     };
 
     struct RawDet {
-        float x, y, z, l, w, h, yaw, score;
+        float x, y, z, dx, dy, dz, yaw, vx, vy, score;
         std::string category;
     };
 
-    std::vector<RawDet> all_dets;
-
-    int cls_offset = 0;
-    int box_offset = 0;
-    int H = feat_h_, W = feat_w_;
-
-    for (auto& head : heads)
-    {
-        int na = head.num_anchors;
-        int nc = head.num_classes;
-        int box_ch = na * box_code_size;
-
-        for (int gy = 0; gy < H; gy++)
-        {
-            for (int gx = 0; gx < W; gx++)
-            {
-                for (int a = 0; a < na; a++)
-                {
-                    float max_score = -1e9f;
-                    int best_cls = 0;
-                    for (int c = 0; c < nc; c++)
-                    {
-                        int cls_ch_idx = cls_offset + a * nc + c;
-                        float raw = cls_preds_[cls_ch_idx * H * W + gy * W + gx];
-                        float sig = 1.0f / (1.0f + std::exp(-raw));
-                        if (sig > max_score)
-                        {
-                            max_score = sig;
-                            best_cls = c;
-                        }
-                    }
-
-                    if (max_score < score_threshold)
-                        continue;
-
-                    auto ch = [&](int c) {
-                        return box_preds_[c * H * W + gy * W + gx];
-                    };
-
-                    int base = box_offset + a * box_code_size;
-                    float dx = ch(base + 0);
-                    float dy = ch(base + 1);
-                    float dz = ch(base + 2);
-                    float dl = ch(base + 3);
-                    float dw = ch(base + 4);
-                    float dh = ch(base + 5);
-                    float cos_yaw = ch(base + 6);
-                    float sin_yaw = ch(base + 7);
-
-                    auto& anchor = head.anchors[a];
-                    float diag = std::sqrt(anchor.l * anchor.l + anchor.w * anchor.w);
-
-                    float ax = x_min + (gx + 0.5f) * pixel_size;
-                    float ay = y_min + (gy + 0.5f) * pixel_size;
-
-                    RawDet det;
-                    det.x = ax + dx * diag;
-                    det.y = ay + dy * diag;
-                    det.z = anchor.z + anchor.h / 2 + dz * anchor.h;
-                    det.l = anchor.l * std::exp(dl);
-                    det.w = anchor.w * std::exp(dw);
-                    det.h = anchor.h * std::exp(dh);
-                    det.yaw = std::atan2(sin_yaw, cos_yaw) + anchor.rotation;
-
-                    det.score = max_score;
-
-                    int class_per_ori = a / 2;
-                    det.category = class_to_category[head.class_names[class_per_ori]];
-
-                    all_dets.push_back(det);
-                }
-            }
-        }
-        cls_offset += head.cls_channels;
-        box_offset += box_ch;
-    }
-
-    // Rotated BEV NMS
+    // BEV NMS helpers
     struct Pt { float x, y; };
 
     auto get_corners = [](const RawDet& d, Pt out[4]) {
         float c = std::cos(d.yaw), s = std::sin(d.yaw);
-        float hl = d.l / 2, hw = d.w / 2;
+        float hl = d.dx / 2, hw = d.dy / 2;
         out[0] = {d.x + hl*c - hw*s, d.y + hl*s + hw*c};
         out[1] = {d.x - hl*c - hw*s, d.y - hl*s + hw*c};
         out[2] = {d.x - hl*c + hw*s, d.y - hl*s - hw*c};
@@ -389,65 +416,144 @@ void PointPillarsRuntimeDetector::postprocess_outputs()
         }
 
         float inter = poly_area(poly);
-        float area_a = a.l * a.w, area_b = b.l * b.w;
+        float area_a = a.dx * a.dy, area_b = b.dx * b.dy;
         return inter / (area_a + area_b - inter + 1e-6f);
     };
 
-    std::sort(all_dets.begin(), all_dets.end(),
-        [](const RawDet& a, const RawDet& b) { return a.score > b.score; });
-
-    std::vector<bool> suppressed(all_dets.size(), false);
-
     detections_.clear();
-    for (size_t i = 0; i < all_dets.size(); i++)
-    {
-        if (suppressed[i]) continue;
 
-        bool tracked = false;
-        for (auto& cat : tracked_categories_)
+    int cls_offset = 0;
+    int box_offset = 0;
+
+    for (auto& head : heads)
+    {
+        int na = head.num_anchors;
+        int nc = head.num_classes;
+        int cls_channels = na * nc;
+        int box_channels = na * box_code_size;
+
+        // Per-class NMS within each head
+        for (int c = 0; c < nc; c++)
         {
-            if (all_dets[i].category.find(cat) != std::string::npos)
+            std::vector<RawDet> class_dets;
+
+            for (int a = 0; a < na; a++)
             {
-                tracked = true;
-                break;
+                int anchor_class = a / 2;
+                if (anchor_class != c)
+                    continue;
+
+                auto& anchor = head.anchors[a];
+                float diag = std::sqrt(anchor.dx * anchor.dx + anchor.dy * anchor.dy);
+
+                for (int gy = 0; gy < H; gy++)
+                {
+                    for (int gx = 0; gx < W; gx++)
+                    {
+                        int cls_ch_idx = cls_offset + a * nc + c;
+                        float raw_score = cls_preds_[cls_ch_idx * H * W + gy * W + gx];
+                        float score = 1.0f / (1.0f + std::exp(-raw_score));
+
+                        if (score <= score_threshold)
+                            continue;
+
+                        auto ch = [&](int idx) {
+                            return box_preds_[idx * H * W + gy * W + gx];
+                        };
+
+                        int base = box_offset + a * box_code_size;
+                        float xt = ch(base + 0);
+                        float yt = ch(base + 1);
+                        float zt = ch(base + 2);
+                        float log_dxt = ch(base + 3);
+                        float log_dyt = ch(base + 4);
+                        float log_dzt = ch(base + 5);
+                        float cos_t = ch(base + 6);
+                        float sin_t = ch(base + 7);
+                        float vxt = ch(base + 8);
+                        float vyt = ch(base + 9);
+
+                        float ax = -51.2f + gx * x_stride;
+                        float ay = -51.2f + gy * y_stride;
+
+                        RawDet det;
+                        det.x = xt * diag + ax;
+                        det.y = yt * diag + ay;
+                        det.z = zt * anchor.dz + anchor.z_center;
+                        det.dx = std::exp(log_dxt) * anchor.dx;
+                        det.dy = std::exp(log_dyt) * anchor.dy;
+                        det.dz = std::exp(log_dzt) * anchor.dz;
+                        det.yaw = std::atan2(sin_t + std::sin(anchor.rotation),
+                                             cos_t + std::cos(anchor.rotation));
+                        det.vx = vxt;
+                        det.vy = vyt;
+                        det.score = score;
+                        det.category = class_to_category[head.class_names[c]];
+
+                        class_dets.push_back(det);
+                    }
+                }
+            }
+
+            // Sort by score descending
+            std::sort(class_dets.begin(), class_dets.end(),
+                [](const RawDet& a, const RawDet& b) { return a.score > b.score; });
+
+            // Pre-max truncation
+            if ((int)class_dets.size() > nms_pre_maxsize)
+                class_dets.resize(nms_pre_maxsize);
+
+            // NMS
+            std::vector<bool> suppressed(class_dets.size(), false);
+            int kept = 0;
+
+            for (size_t i = 0; i < class_dets.size() && kept < nms_post_maxsize; i++)
+            {
+                if (suppressed[i]) continue;
+
+                bool tracked = false;
+                for (auto& cat : tracked_categories_)
+                {
+                    if (class_dets[i].category.find(cat) != std::string::npos)
+                    {
+                        tracked = true;
+                        break;
+                    }
+                }
+
+                if (tracked)
+                {
+                    Detection d;
+                    d.category_name_ = class_dets[i].category;
+                    d.confidence_ = class_dets[i].score;
+                    d.position_ = Eigen::Vector3d(class_dets[i].x, class_dets[i].y, class_dets[i].z);
+                    d.bbox_dims_ = Eigen::Vector3d(class_dets[i].dy, class_dets[i].dx, class_dets[i].dz);
+                    d.yaw_ = class_dets[i].yaw;
+                    d.rotation_quaternion_ = Eigen::Vector4d(
+                        std::cos(class_dets[i].yaw / 2), 0, 0, std::sin(class_dets[i].yaw / 2));
+                    detections_.push_back(d);
+                }
+
+                kept++;
+
+                for (size_t j = i + 1; j < class_dets.size(); j++)
+                {
+                    if (suppressed[j]) continue;
+                    if (iou_bev(class_dets[i], class_dets[j]) > nms_iou_threshold)
+                        suppressed[j] = true;
+                }
             }
         }
-        if (!tracked) continue;
 
-        Detection d;
-        d.category_name_ = all_dets[i].category;
-        d.confidence_ = all_dets[i].score;
-        d.position_ = Eigen::Vector3d(all_dets[i].x, all_dets[i].y, all_dets[i].z);
-        d.bbox_dims_ = Eigen::Vector3d(all_dets[i].w, all_dets[i].l, all_dets[i].h);
-        d.yaw_ = all_dets[i].yaw;
-        d.rotation_quaternion_ = Eigen::Vector4d(
-            std::cos(all_dets[i].yaw / 2), 0, 0, std::sin(all_dets[i].yaw / 2));
-        detections_.push_back(d);
-
-        for (size_t j = i + 1; j < all_dets.size(); j++)
-        {
-            if (suppressed[j]) continue;
-            if (all_dets[j].category != all_dets[i].category) continue;
-            if (iou_bev(all_dets[i], all_dets[j]) > nms_threshold)
-                suppressed[j] = true;
-        }
+        cls_offset += cls_channels;
+        box_offset += box_channels;
     }
 }
 
 
 void PointPillarsRuntimeDetector::transform_to_ego()
 {
-    auto quat_to_matrix = [](const Eigen::Vector4d& q) -> Eigen::Matrix3d
-    {
-        double w = q[0], x = q[1], y = q[2], z = q[3];
-        Eigen::Matrix3d R;
-        R << 1-2*(y*y+z*z), 2*(x*y-w*z), 2*(x*z+w*y),
-             2*(x*y+w*z), 1-2*(x*x+z*z), 2*(y*z-w*x),
-             2*(x*z-w*y), 2*(y*z+w*x), 1-2*(x*x+y*y);
-        return R;
-    };
-
-    Eigen::Matrix3d R_calib = quat_to_matrix(lidar_calib_.rotation);
+    Eigen::Matrix3d R_calib = make_transform(lidar_calib_.rotation, lidar_calib_.translation).block<3,3>(0,0);
     Eigen::Vector3d t_calib = lidar_calib_.translation;
 
     for (auto& det : detections_)
@@ -465,17 +571,7 @@ void PointPillarsRuntimeDetector::transform_to_ego()
 
 void PointPillarsRuntimeDetector::transform_to_global(const EgoPose& ego_pose)
 {
-    auto quat_to_matrix = [](const Eigen::Vector4d& q) -> Eigen::Matrix3d
-    {
-        double w = q[0], x = q[1], y = q[2], z = q[3];
-        Eigen::Matrix3d R;
-        R << 1-2*(y*y+z*z), 2*(x*y-w*z), 2*(x*z+w*y),
-             2*(x*y+w*z), 1-2*(x*x+z*z), 2*(y*z-w*x),
-             2*(x*z-w*y), 2*(y*z+w*x), 1-2*(x*x+y*y);
-        return R;
-    };
-
-    Eigen::Matrix3d R_ego = quat_to_matrix(ego_pose.rotation);
+    Eigen::Matrix3d R_ego = make_transform(ego_pose.rotation, ego_pose.translation).block<3,3>(0,0);
     Eigen::Vector3d t_ego = ego_pose.translation;
 
     for (auto& det : detections_)
@@ -488,92 +584,4 @@ void PointPillarsRuntimeDetector::transform_to_global(const EgoPose& ego_pose)
         det.rotation_quaternion_ = Eigen::Vector4d(
             std::cos(det.yaw_ / 2), 0, 0, std::sin(det.yaw_ / 2));
     }
-}
-
-
-void PointPillarsRuntimeDetector::range_filter(float x_min, float x_max,
-                                        float y_min, float y_max,
-                                        float z_min, float z_max)
-{
-    int num_points = point_cloud_.size() / 5;
-    std::vector<float> filtered;
-
-    for (int i = 0; i < num_points; i++)
-    {
-        float x = point_cloud_[5 * i];
-        float y = point_cloud_[5 * i + 1];
-        float z = point_cloud_[5 * i + 2];
-
-        if (x >= x_min && x <= x_max && y >= y_min && y <= y_max && z >= z_min && z <= z_max)
-        {
-            for (int f = 0; f < 5; f++)
-                filtered.push_back(point_cloud_[5 * i + f]);
-        }
-    }
-
-    point_cloud_ = filtered;
-}
-
-
-void PointPillarsRuntimeDetector::voxelize(float x_min, float x_max,
-                                    float y_min, float y_max,
-                                    float voxel_x, float voxel_y,
-                                    int max_points_per_pillar, int max_pillars)
-{
-    const int num_features = 5;
-    const int grid_x_size = static_cast<int>((x_max - x_min) / voxel_x);
-    const int grid_y_size = static_cast<int>((y_max - y_min) / voxel_y);
-
-    std::unordered_map<int, int> grid_to_pillar;
-
-    voxels_.assign(max_pillars * max_points_per_pillar * num_features, 0.0f);
-    voxel_num_points_.clear();
-    voxel_coords_.clear();
-
-    int num_points = point_cloud_.size() / num_features;
-    int num_pillars = 0;
-
-    for (int i = 0; i < num_points; i++)
-    {
-        float x = point_cloud_[i * 5 + 0];
-        float y = point_cloud_[i * 5 + 1];
-
-        int gx = static_cast<int>((x - x_min) / voxel_x);
-        int gy = static_cast<int>((y - y_min) / voxel_y);
-
-        if (gx < 0 || gx >= grid_x_size || gy < 0 || gy >= grid_y_size)
-            continue;
-
-        int grid_key = gy * grid_x_size + gx;
-        int pillar_idx;
-
-        if (grid_to_pillar.find(grid_key) == grid_to_pillar.end())
-        {
-            if (num_pillars >= max_pillars)
-                continue;
-            pillar_idx = num_pillars;
-            grid_to_pillar[grid_key] = pillar_idx;
-            voxel_num_points_.push_back(0);
-            voxel_coords_.insert(voxel_coords_.end(), {0, 0, gy, gx});
-            num_pillars++;
-        }
-        else
-        {
-            pillar_idx = grid_to_pillar[grid_key];
-        }
-
-        int pt_count = voxel_num_points_[pillar_idx];
-        if (pt_count >= max_points_per_pillar)
-            continue;
-
-        int offset = (pillar_idx * max_points_per_pillar + pt_count) * num_features;
-        voxels_[offset + 0] = point_cloud_[i * 5 + 0];
-        voxels_[offset + 1] = point_cloud_[i * 5 + 1];
-        voxels_[offset + 2] = point_cloud_[i * 5 + 2];
-        voxels_[offset + 3] = point_cloud_[i * 5 + 3];
-        voxels_[offset + 4] = point_cloud_[i * 5 + 4];
-        voxel_num_points_[pillar_idx]++;
-    }
-
-    voxels_.resize(num_pillars * max_points_per_pillar * num_features);
 }

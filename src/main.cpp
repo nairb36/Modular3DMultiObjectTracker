@@ -4,6 +4,7 @@
 #include "tracker.hpp"
 #include "gt_detector.hpp"
 #include "pointpillars_detector.hpp"
+#include "pointpillars_runtime_detector.hpp"
 #include "linear_kf.hpp"
 
 #include <iostream>
@@ -19,12 +20,14 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    std::string config_path = "../configs/MOT_v2.json";
+    std::string config_path = "../configs/MOT_v2_runtime.json";
     std::ifstream config_file(config_path);
     nlohmann::json config = nlohmann::json::parse(config_file);
 
     std::string scene_dir = config["data"]["scene_dir"];
-    std::string detections_dir = config["data"]["detections_dir"];
+    std::string detections_dir;
+    if (config["data"].contains("detections_dir"))
+        detections_dir = config["data"]["detections_dir"].get<std::string>();
     TrackerConfig tracker_config = TrackerConfig::from_json(config);
 
     // Create timestamped run folder
@@ -67,9 +70,9 @@ int main()
         {
             detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config, detections_file);
         }
-        else if (tracker_config.detector_config.type == "PointPillars")
+        else if (tracker_config.detector_config.type == "PointPillars_runtime")
         {
-            detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config, scene.calibration.at("LIDAR_TOP"));
+            detector = std::make_unique<PointPillarsRuntimeDetector>(tracker_config.detector_config, scene.calibration.at("LIDAR_TOP"));
         }
 
         // Create motion model factory
