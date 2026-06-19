@@ -99,12 +99,24 @@ Each component defines its own **config struct** with sensible defaults. The top
 ### Association
 - **Hungarian algorithm** for optimal bipartite matching
 - **Category gating** — tracks and detections must share the same object class
-- **Distance gating** — pairs beyond a configurable displacement threshold are excluded from consideration
+- **Motion feasibility gating** — pairs are excluded if the object could not physically have moved from the predicted location to the detection in the elapsed time
 
 ### Track Management
 - Automatic track creation from unmatched detections
 - Automatic track deletion after exceeding a configurable consecutive miss threshold
 - Per-track lifecycle metadata: age, hits, consecutive misses
+
+---
+
+## v2 Features
+
+### Detection
+- **PointPillars precomputed detections** — replaces ground-truth with real detector output
+- Per-scene JSON files containing 3D detections with confidence scores
+- Configurable score threshold for filtering low-confidence detections
+
+### Association
+- **Mahalanobis gating** — statistically-informed gating using the Kalman Filter's innovation covariance. The `MotionModel` interface exposes a `compute_innovation(z)` method that returns the innovation vector (y = z - Hx) and innovation covariance (S = HPH' + R), keeping filter internals encapsulated. Pairs exceeding a chi-squared threshold are excluded from association.
 
 ---
 
@@ -119,7 +131,8 @@ Project_MOT/
 │   ├── track.hpp                     #   Track data structure
 │   ├── detector.hpp                  #   Abstract detector interface + DetectorConfig
 │   ├── gt_detector.hpp               #   Ground-truth detector implementation
-│   ├── motion_model.hpp              #   Abstract motion model interface + MotionModelConfig
+│   ├── pointpillars_detector.hpp     #   PointPillars precomputed detector implementation
+│   ├── motion_model.hpp              #   Abstract motion model interface + Innovation struct + MotionModelConfig
 │   ├── linear_kf.hpp                 #   Linear Kalman Filter implementation
 │   ├── cost_function.hpp             #   Cost computation + CostFunctionConfig
 │   ├── associator.hpp                #   Track-detection association + AssociatorConfig
@@ -129,7 +142,8 @@ Project_MOT/
 │   ├── tracker.cpp                   #   Tracker pipeline implementation
 │   ├── track.cpp                     #   Track constructor
 │   ├── gt_detector.cpp               #   Ground-truth detector (reads Frame annotations)
-│   ├── linear_kf.cpp                 #   Kalman Filter predict/update
+│   ├── pointpillars_detector.cpp     #   PointPillars detector (reads precomputed detections)
+│   ├── linear_kf.cpp                 #   Kalman Filter predict/update + innovation computation
 │   ├── cost_function.cpp             #   Distance and IoU cost implementations
 │   └── associator.cpp                #   Cost matrix, gating, and Hungarian matching
 ├── scripts/                          # Python utilities
@@ -139,7 +153,11 @@ Project_MOT/
 │   ├── check_nuscenes.py             #   Verify nuScenes dataset mount
 │   └── evaluate.py                   #   Evaluate tracking results via nuScenes devkit
 ├── configs/
-│   └── MOT_v1.json                   #   v1 configuration
+│   ├── MOT_v1.json                   #   v1 configuration (GT detections)
+│   └── MOT_v2.json                   #   v2 configuration (PointPillars detections)
+├── models/
+│   └── pointpillars/
+│       └── precomputed_detections/   #   Per-scene PointPillars detection JSON files
 ├── results/
 │   ├── scenes/                       #   Exported scene JSON files (input to tracker)
 │   ├── gt/                           #   GT detection files (dataset-agnostic format)
@@ -170,7 +188,7 @@ make
 ./mot_tracker
 ```
 
-The tracker reads its configuration from `../configs/MOT_v1.json` relative to the build directory.
+The tracker reads its configuration from `../configs/MOT_v2.json` by default. To run with ground-truth detections, change the config path in `main.cpp` to `../configs/MOT_v1.json`.
 
 ---
 
