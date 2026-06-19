@@ -68,6 +68,14 @@ Eigen::MatrixXd LinearKF::get_covariance() const
     return P_;
 }
 
+Innovation LinearKF::compute_innovation(const Eigen::VectorXd& z) const
+{
+    Innovation innov;
+    innov.y = z - H_ * x_;
+    innov.S = H_ * P_ * H_.transpose() + R_;
+    return innov;
+}
+
 double LinearKF::get_yaw() const
 {
     return yaw_;
