@@ -13,12 +13,14 @@
 
 struct AssociatorConfig
 {
-    double distance_gate = 5.0;
+    double motion_feasibility_gate = 5.0;
+    double mahalanobis_gate = 9.21;
 
     static AssociatorConfig from_json(const nlohmann::json& j)
     {
         AssociatorConfig cfg;
-        cfg.distance_gate = j["distance_gate"].get<double>();
+        cfg.motion_feasibility_gate = j["motion_feasibility_gate"].get<double>();
+        cfg.mahalanobis_gate = j["mahalanobis_gate"].get<double>();
         return cfg;
     }
 };
@@ -33,7 +35,8 @@ class Associator
 
 
     private:
-    double kDistanceGate;
+    double kMotionFeasibilityGate;
+    double kMahalanobisGate;
     HungarianAlgorithm hungarian_algorithm_;
     std::vector<std::vector<double>> cost_matrix_;
     std::vector<int> assignments_;

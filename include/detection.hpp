@@ -11,7 +11,6 @@
 /// @brief A single 3D detection: position, bounding box, and orientation
 struct Detection
 {
-    std::string instance_token_;
     std::string category_name_;
     float confidence_;
     Eigen::Vector3d position_; // [x, y, z]

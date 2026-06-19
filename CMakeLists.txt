@@ -12,6 +12,7 @@ add_executable(mot_tracker
     src/main.cpp
     src/tracker.cpp
     src/gt_detector.cpp
+    src/pointpillars_detector.cpp
     src/associator.cpp
     src/linear_kf.cpp
     src/track.cpp
