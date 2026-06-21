@@ -198,11 +198,34 @@ void Tracker::delete_old_tracks()
 }
 
 
+static const std::unordered_map<std::string, std::string> kUniversalCategoryMap = {
+    {"human.pedestrian.adult", "pedestrian"},
+    {"human.pedestrian.child", "pedestrian"},
+    {"human.pedestrian.construction_worker", "pedestrian"},
+    {"human.pedestrian.personal_mobility", "pedestrian"},
+    {"human.pedestrian.police_officer", "pedestrian"},
+    {"human.pedestrian.stroller", "pedestrian"},
+    {"human.pedestrian.wheelchair", "pedestrian"},
+    {"vehicle.car", "car"},
+    {"vehicle.truck", "truck"},
+    {"vehicle.bus.bendy", "bus"},
+    {"vehicle.bus.rigid", "bus"},
+    {"vehicle.construction", "construction_vehicle"},
+    {"vehicle.motorcycle", "motorcycle"},
+    {"vehicle.bicycle", "bicycle"},
+    {"vehicle.trailer", "trailer"},
+    {"movable_object.barrier", "barrier"},
+    {"movable_object.trafficcone", "traffic_cone"},
+    {"movable_object.debris", "barrier"},
+    {"movable_object.pushable_pullable", "barrier"},
+    {"static_object.bicycle_rack", "barrier"},
+};
+
 // Snapshots all active tracks for the current frame into results_log_
 void Tracker::log_tracker_results()
 {
     nlohmann::json frame_entry;
-    frame_entry["frame_id"] = curr_frame_id_;
+    frame_entry["frame_index"] = curr_frame_id_;
     frame_entry["timestamp"] = scene_.frames[curr_frame_id_].timestamp;
 
     nlohmann::json tracks_array = nlohmann::json::array();
@@ -211,7 +234,8 @@ void Tracker::log_tracker_results()
         Eigen::Vector3d position = track.motion_model_->get_position();
         nlohmann::json track_entry;
         track_entry["id"] = track.id_;
-        track_entry["category_name"] = track.category_name_;
+        auto it = kUniversalCategoryMap.find(track.category_name_);
+        track_entry["category_name"] = (it != kUniversalCategoryMap.end()) ? it->second : track.category_name_;
         track_entry["translation"] = {position.x(), position.y(), position.z()};
         track_entry["size"] = {track.bbox_dims_.x(), track.bbox_dims_.y(), track.bbox_dims_.z()};
         track_entry["yaw"] = track.yaw_;
