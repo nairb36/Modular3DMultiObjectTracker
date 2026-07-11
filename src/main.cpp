@@ -77,6 +77,13 @@ int main()
                 return std::make_unique<LinearKF>(position);
             };
         }
+        else if (tracker_config.motion_model_config.type == "CTRV")
+        {
+            motion_model_factory = [](Eigen::Vector3d position)
+            {
+                return std::make_unique<UKF>(position);
+            };
+        }
 
         // Run tracker
         Tracker mot_tracker(scene, std::move(detector), std::move(motion_model_factory), tracker_config);
