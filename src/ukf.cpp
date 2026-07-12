@@ -1,6 +1,7 @@
 // Implementation of Unscented Kalman Filter
 
 #include "ukf.hpp"
+#include <cmath>
 
 UKF::UKF(Eigen::Vector3d position)
 {
@@ -13,19 +14,21 @@ UKF::UKF(Eigen::Vector3d position)
     sigma_squared_process << 1, 1;
 
     // UKF Matrices Initialization
-    x_ = Eigen::VectorXd::Zero(6); // [x, y, z, v, yaw, yaw_d]
+    n_ = 6;
+    n_aug_ = 8;
+    x_ = Eigen::VectorXd::Zero(n_); // [x, y, z, v, yaw, yaw_d]
     x_.head(3) = position;
 
-    x_aug_ = Eigen::VectorXd::Zero(8); // [x, y, z, v, yaw, yaw_d, nu_a, nu_yaw_dd]
+    x_aug_ = Eigen::VectorXd::Zero(n_aug_); // [x, y, z, v, yaw, yaw_d, nu_a, nu_yaw_dd]
 
     P_ = sigma_squared_state.asDiagonal();
 
     Q_ = sigma_squared_process.asDiagonal();
 
-    P_aug_ =  Eigen::MatrixXd::Zero(8, 8);
+    P_aug_ =  Eigen::MatrixXd::Zero(n_aug_, n_aug_);
     P_aug_.bottomRightCorner(2, 2) = Q_;
 
-    H_ = Eigen::MatrixXd::Zero(3, 6);
+    H_ = Eigen::MatrixXd::Zero(3, n_);
     H_.topLeftCorner(3, 3) = Eigen::Matrix3d::Identity();
 
     R_ = sigma_squared_measurement.asDiagonal();
@@ -34,8 +37,28 @@ UKF::UKF(Eigen::Vector3d position)
 
 void UKF::predict(double dt)
 {
-    x_aug_.head(6) = x_;
-    P_aug_.topLeftCorner(6,6) = P_;
+    x_aug_.head(n_) = x_;
+    P_aug_.topLeftCorner(n_,n_) = P_;
 
-    
+    // Generate Sigma Points
+    Eigen::MatrixXd X_aug = generate_sigma_points();
+
+    // Propogate Sigma Points
+
+    // Compute mean and covariance of predicted Sigma Points
+}
+
+Eigen::MatrixXd UKF::generate_sigma_points() const
+{
+    double lambda = 3.0 - n_aug_;
+
+    // Matrix square root of P_aug via Cholesky decomposition: P_aug = L*L'
+    Eigen::MatrixXd L = P_aug_.llt().matrixL();
+    Eigen::MatrixXd scaled_L = std::sqrt(lambda + n_aug_) * L;
+
+    Eigen::MatrixXd X_aug(n_aug_, 2*n_aug_ + 1);
+    X_aug.col(0) = x_aug_;
+    X_aug.block(0, 1, n_aug_, n_aug_) = scaled_L.colwise() + x_aug_;
+    X_aug.block(0, n_aug_ + 1, n_aug_, n_aug_) = (-scaled_L).colwise() + x_aug_;
+    return X_aug;
 }

@@ -9,6 +9,8 @@
 class UKF: public MotionModel
 {
     private:
+    int n_; // State dimensions
+    int n_aug_; //Augmented State dimensions
     Eigen::VectorXd x_; // State
     Eigen::VectorXd x_aug_; // Augmented State
     Eigen::MatrixXd P_; // State Covariance Matrix
@@ -17,6 +19,10 @@ class UKF: public MotionModel
     Eigen::MatrixXd H_; // Observation Matrix
     Eigen::MatrixXd R_; // Measurement Noise Covariance Matrix
     double yaw_; // yaw of BBox
+
+    Eigen::MatrixXd generate_sigma_points() const;
+    void propagate_sigma_points(Eigen::MatrixXd& X_aug, double dt);
+    void compute_predicted_mean_and_covariance();
 
 
     public:
