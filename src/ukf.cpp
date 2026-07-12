@@ -1,7 +1,13 @@
 // Implementation of Unscented Kalman Filter
 
 #include "ukf.hpp"
-#include <cmath>
+
+// Wraps an angle to [-pi, pi]
+static double wrap_angle(double angle)
+{
+    return std::atan2(std::sin(angle), std::cos(angle));
+}
+
 
 UKF::UKF(Eigen::Vector3d position)
 {
@@ -44,8 +50,10 @@ void UKF::predict(double dt)
     Eigen::MatrixXd X_aug = generate_sigma_points();
 
     // Propogate Sigma Points
+    Eigen::MatrixXd X_pred = propagate_sigma_points(X_aug, dt);
 
     // Compute mean and covariance of predicted Sigma Points
+    compute_predicted_mean_and_covariance(X_pred);
 }
 
 Eigen::MatrixXd UKF::generate_sigma_points() const
@@ -61,4 +69,89 @@ Eigen::MatrixXd UKF::generate_sigma_points() const
     X_aug.block(0, 1, n_aug_, n_aug_) = scaled_L.colwise() + x_aug_;
     X_aug.block(0, n_aug_ + 1, n_aug_, n_aug_) = (-scaled_L).colwise() + x_aug_;
     return X_aug;
+}
+
+Eigen::MatrixXd UKF::propagate_sigma_points(const Eigen::MatrixXd& X_aug, double dt)
+{
+    Eigen::MatrixXd X_pred(n_, 2*n_aug_ + 1);
+
+    for (int i = 0; i < 2*n_aug_ + 1; i++)
+    {
+        double x = X_aug(0, i);
+        double y = X_aug(1, i);
+        double z = X_aug(2, i);
+        double v = X_aug(3, i);
+        double yaw = X_aug(4, i);
+        double yaw_d = X_aug(5, i);
+        double nu_a = X_aug(6, i);
+        double nu_yaw_dd = X_aug(7, i);
+
+        double x_pred, y_pred;
+        if (std::abs(yaw_d) < 1e-4)
+        {
+            // Near-zero turn rate: CTRV degenerates to straight-line motion
+            x_pred = x + v*cos(yaw)*dt + 0.5*nu_a*cos(yaw)*dt*dt;
+            y_pred = y + v*sin(yaw)*dt + 0.5*nu_a*sin(yaw)*dt*dt;
+        }
+        else
+        {
+            x_pred = x + (v/yaw_d)*(sin(yaw + yaw_d*dt) - sin(yaw)) + 0.5*nu_a*cos(yaw)*dt*dt;
+            y_pred = y + (v/yaw_d)*(-cos(yaw + yaw_d*dt) + cos(yaw)) + 0.5*nu_a*sin(yaw)*dt*dt;
+        }
+        double z_pred = z;
+        double v_pred = v + nu_a*dt;
+        double yaw_pred = yaw + yaw_d*dt + 0.5*nu_yaw_dd*dt*dt;
+        double yaw_d_pred = yaw_d + nu_yaw_dd*dt;
+
+        X_pred.col(i) << x_pred, y_pred, z_pred, v_pred, yaw_pred, yaw_d_pred;
+    }  
+
+    return X_pred;
+}
+
+
+void UKF::compute_predicted_mean_and_covariance(const Eigen::MatrixXd& X_pred)
+{
+    double lambda = 3.0 - n_aug_;
+
+    // New mean state
+    Eigen::VectorXd x_new = Eigen::VectorXd::Zero(n_);
+    for (int i = 0; i < 2*n_aug_ + 1; i++)
+    {
+        double w;
+        if (i == 0)
+        {
+            w = lambda/(lambda + n_aug_);
+        }
+        else
+        {
+            w = 0.5/(lambda + n_aug_);
+        }
+
+        x_new += w*X_pred.col(i);
+    }
+    x_new(4) = wrap_angle(x_new(4));
+
+    // New state covariance matrix
+    Eigen::MatrixXd P_new = Eigen::MatrixXd::Zero(n_, n_);
+    for (int i = 0; i < 2*n_aug_ + 1; i++)
+    {
+        double w;
+        if (i == 0)
+        {
+            w = lambda/(lambda + n_aug_);
+        }
+        else
+        {
+            w = 0.5/(lambda + n_aug_);
+        }
+
+        Eigen::VectorXd residual = X_pred.col(i) - x_new;
+        residual(4) = wrap_angle(residual(4));
+        P_new += w*residual*residual.transpose();
+    }
+
+    // Assign to UKF State Variables
+    x_ = x_new;
+    P_ = P_new;
 }

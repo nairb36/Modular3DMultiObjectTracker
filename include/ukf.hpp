@@ -5,6 +5,7 @@
 #pragma once
 
 #include "motion_model.hpp"
+#include <cmath>
 
 class UKF: public MotionModel
 {
@@ -21,8 +22,8 @@ class UKF: public MotionModel
     double yaw_; // yaw of BBox
 
     Eigen::MatrixXd generate_sigma_points() const;
-    void propagate_sigma_points(Eigen::MatrixXd& X_aug, double dt);
-    void compute_predicted_mean_and_covariance();
+    Eigen::MatrixXd propagate_sigma_points(const Eigen::MatrixXd& X_aug, double dt);
+    void compute_predicted_mean_and_covariance(const Eigen::MatrixXd& X_pred);
 
 
     public:
