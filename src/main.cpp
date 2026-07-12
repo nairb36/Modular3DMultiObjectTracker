@@ -5,6 +5,7 @@
 #include "gt_detector.hpp"
 #include "pointpillars_detector.hpp"
 #include "linear_kf.hpp"
+#include "ukf.hpp"
 
 #include <iostream>
 #include <string>
@@ -19,7 +20,7 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    std::string config_path = "../configs/MOT_v2.json";
+    std::string config_path = "../configs/MOT_v3.json";
     std::ifstream config_file(config_path);
     nlohmann::json config = nlohmann::json::parse(config_file);
 
