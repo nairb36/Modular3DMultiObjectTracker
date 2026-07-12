@@ -155,3 +155,31 @@ void UKF::compute_predicted_mean_and_covariance(const Eigen::MatrixXd& X_pred)
     x_ = x_new;
     P_ = P_new;
 }
+
+
+void UKF::update(const Eigen::VectorXd& z, const double yaw)
+{
+    // Linear update function implemented here since our measurements follow a linear model
+    // Would need to do the unscented transform if measurement follows a non-linear model
+
+    Eigen::VectorXd y = z - H_*x_;
+    Eigen::MatrixXd S = H_*P_*H_.transpose() + R_;
+    Eigen::MatrixXd K = P_*H_.transpose()*S.inverse();
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_, n_);
+
+    x_ = x_ + K*y;
+    P_ = (I - K*H_)*P_;
+
+    // Guard against detector heading flips (pi ambiguity): if the measured yaw
+    // disagrees with the current estimate by more than pi/2, flip it by pi.
+    double corrected_yaw = yaw;
+    if (std::abs(wrap_angle(yaw - x_(4))) > M_PI/2.0)
+    {
+        corrected_yaw = wrap_angle(yaw + M_PI);
+    }
+
+    // TODO: Treat yaw as a proper measurement (4D z = [x, y, z, yaw] with its own
+    // R entry and wrapped innovation) instead of hard-overwriting the state yaw.
+    yaw_ = corrected_yaw;
+    x_(4) = corrected_yaw;
+}
