@@ -24,19 +24,10 @@ from nuscenes.eval.tracking.evaluate import TrackingEval
 from nuscenes.utils.splits import create_splits_scenes
 
 
-CATEGORY_TO_TRACKING_NAME = {
-    'vehicle.bicycle': 'bicycle',
-    'vehicle.bus.bendy': 'bus',
-    'vehicle.bus.rigid': 'bus',
-    'vehicle.car': 'car',
-    'vehicle.motorcycle': 'motorcycle',
-    'human.pedestrian.adult': 'pedestrian',
-    'human.pedestrian.child': 'pedestrian',
-    'human.pedestrian.construction_worker': 'pedestrian',
-    'human.pedestrian.police_officer': 'pedestrian',
-    'vehicle.trailer': 'trailer',
-    'vehicle.truck': 'truck',
-}
+# Tracker output uses SensorLens-universal short category names. These are the
+# 7 classes in the nuScenes tracking benchmark; anything else (e.g.
+# construction_vehicle, barrier) is excluded from the submission.
+TRACKING_NAMES = {'bicycle', 'bus', 'car', 'motorcycle', 'pedestrian', 'trailer', 'truck'}
 
 
 def yaw_to_quaternion(yaw):
@@ -66,11 +57,11 @@ def convert_tracker_results(tracker_path, gt_scene_path):
 
     results = {}
     for frame in tracker_data:
-        sample_token = frame_to_sample_token[frame['frame_id']]
+        sample_token = frame_to_sample_token[frame['frame_index']]
         boxes = []
         for track in frame['tracks']:
-            tracking_name = CATEGORY_TO_TRACKING_NAME.get(track['category_name'])
-            if tracking_name is None:
+            tracking_name = track['category_name']
+            if tracking_name not in TRACKING_NAMES:
                 continue
             boxes.append({
                 'sample_token': sample_token,
@@ -107,7 +98,7 @@ def parse_args():
     p = argparse.ArgumentParser(description='Evaluate MOT tracker results against nuScenes.')
     p.add_argument('result_path', help='Run directory (e.g. results/tracking/20260515_232556) or individual JSON file(s)',
                    nargs='+')
-    p.add_argument('--dataroot', default='/workspace/data/nuscenes')
+    p.add_argument('--dataroot', default='/workspace/data/datasets/nuscenes/v1.0-mini')
     p.add_argument('--version', default='v1.0-mini')
     p.add_argument('--gt-dir', default=None,
                    help='Directory containing GT scene JSONs (default: results/gt relative to project root)')
