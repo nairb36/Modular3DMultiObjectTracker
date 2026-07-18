@@ -3,7 +3,7 @@
 #include "detector.hpp"
 #include <string>
 
-constexpr float PP_SCORE_THRESHOLD = 0.5f;
+constexpr float PP_SCORE_THRESHOLD = 0.2f;
 
 class PointPillarsDetector : public Detector
 {
