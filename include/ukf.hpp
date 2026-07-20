@@ -27,7 +27,7 @@ class UKF: public MotionModel
 
 
     public:
-    UKF(Eigen::Vector3d);
+    UKF(Eigen::Vector3d position, const MotionModelConfig& config);
     Eigen::Vector3d get_position() const;
     Eigen::MatrixXd get_covariance() const;
     Innovation compute_innovation(const Eigen::VectorXd& z) const;

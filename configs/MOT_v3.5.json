@@ -1,12 +1,12 @@
 {
     "data": {
         "scene_dir": "../results/scenes",
-        "detections_dir": "../models/pointpillars/precomputed_detections"
+        "detections_dir": "../models/second/precomputed_detections"
     },
 
     "detector": {
         "type": "PointPillars",
-        "params": "params/detector_pointpillars.json"
+        "params": "params/detector_second.json"
     },
 
     "motion_model": {

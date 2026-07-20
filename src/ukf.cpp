@@ -9,15 +9,16 @@ static double wrap_angle(double angle)
 }
 
 
-UKF::UKF(Eigen::Vector3d position)
+UKF::UKF(Eigen::Vector3d position, const MotionModelConfig& config)
 {
-    // Tunable Params
-    Eigen::VectorXd sigma_squared_state(6);
-    sigma_squared_state<< 100, 100, 100, 20, 3, 1; // sigma squared for x, y, z, v, yaw, yaw_d
-    Eigen::VectorXd sigma_squared_measurement(3);
-    sigma_squared_measurement<< 0.1, 0.1, 0.1; // sigma squared for x, y, z
-    Eigen::VectorXd sigma_squared_process(2);
-    sigma_squared_process << 1, 1;
+    // Tunable params from config (diagonals): state = [x, y, z, v, yaw, yaw_d],
+    // process noise = [nu_a, nu_yaw_dd], measurement = [x, y, z]
+    Eigen::VectorXd sigma_squared_state =
+        Eigen::Map<const Eigen::VectorXd>(config.initial_state_variance.data(), config.initial_state_variance.size());
+    Eigen::VectorXd sigma_squared_measurement =
+        Eigen::Map<const Eigen::VectorXd>(config.measurement_noise_variance.data(), config.measurement_noise_variance.size());
+    Eigen::VectorXd sigma_squared_process =
+        Eigen::Map<const Eigen::VectorXd>(config.process_noise_variance.data(), config.process_noise_variance.size());
 
     // UKF Matrices Initialization
     n_ = 6;
