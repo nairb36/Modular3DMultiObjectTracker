@@ -146,7 +146,8 @@ void Tracker::update_tracks_state()
             Detection corresponding_detection = curr_frame_detections_[tracks_to_detections_map_[i]];
             tracks_[i].motion_model_->update(corresponding_detection.position_, corresponding_detection.yaw_); // Measurement update for state estimation
             tracks_[i].yaw_ = tracks_[i].motion_model_->get_yaw();
-            // TODO: Update tracking_score on match (e.g. running average of detection confidence, hit ratio, or covariance-based)
+            // Update tracking_score on match (e.g. running average of detection confidence, hit ratio, or covariance-based)
+            tracks_[i].tracking_score_ = (tracks_[i].hits_*tracks_[i].tracking_score_ + corresponding_detection.confidence_)/(tracks_[i].hits_ + 1);
             tracks_[i].consecutive_misses_ = 0;
             tracks_[i].hits_++;
             tracks_[i].age_++;
@@ -154,6 +155,7 @@ void Tracker::update_tracks_state()
         else
         {
             // Current track is NOT associated with a detection in the current frame
+            tracks_[i].tracking_score_ = (tracks_[i].hits_*tracks_[i].tracking_score_)/(tracks_[i].hits_ + 1);
             tracks_[i].consecutive_misses_++;
             tracks_[i].age_++;
         }
