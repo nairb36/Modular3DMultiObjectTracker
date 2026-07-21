@@ -63,6 +63,8 @@ def convert_tracker_results(tracker_path, gt_scene_path):
             tracking_name = track['category_name']
             if tracking_name not in TRACKING_NAMES:
                 continue
+            if any(x is None for x in track['translation']):
+                continue
             boxes.append({
                 'sample_token': sample_token,
                 'translation': track['translation'],
