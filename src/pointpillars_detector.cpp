@@ -3,7 +3,8 @@
 
 PointPillarsDetector::PointPillarsDetector(const DetectorConfig& config, const std::string& detections_file)
     : detections_file_(detections_file),
-      tracked_categories_(config.tracked_categories)
+      tracked_categories_(config.tracked_categories),
+      score_threshold_(config.score_threshold)
 {
 }
 
@@ -22,7 +23,7 @@ std::vector<Detection> PointPillarsDetector::detect(const Frame& frame)
         for (const auto& dj : frame_json["detections"])
         {
             float score = dj["score"].get<float>();
-            if (score < PP_SCORE_THRESHOLD)
+            if (score < score_threshold_)
                 continue;
 
             std::string category = dj["category_name"].get<std::string>();

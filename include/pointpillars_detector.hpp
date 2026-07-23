@@ -3,8 +3,6 @@
 #include "detector.hpp"
 #include <string>
 
-constexpr float PP_SCORE_THRESHOLD = 0.5f;
-
 class PointPillarsDetector : public Detector
 {
     public:
@@ -14,5 +12,6 @@ class PointPillarsDetector : public Detector
     private:
     std::string detections_file_;
     std::vector<std::string> tracked_categories_;
+    float score_threshold_;
     bool is_tracked_category(const std::string& category_name);
 };

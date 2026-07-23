@@ -45,10 +45,10 @@ bool Associator::apply_gating_rules(const Track& track, const Detection& detecti
         return false;
     }
 
-    // Gate 3: Mahalanobis Gating
+    // Gate 3: Mahalanobis Gating (only applied to (x,y) coordinates)
     Innovation innovation_struct = track.motion_model_->compute_innovation(detection.position_);
-    Eigen::VectorXd y = innovation_struct.y;
-    Eigen::MatrixXd S = innovation_struct.S;
+    Eigen::VectorXd y = innovation_struct.y.head(2);
+    Eigen::MatrixXd S = innovation_struct.S.topLeftCorner(2,2);
     double mahalanobis_distance = y.transpose()*S.inverse()*y;
     if (mahalanobis_distance > kMahalanobisGate)
     {

@@ -4,15 +4,15 @@
 
 #include "linear_kf.hpp"
 
-LinearKF::LinearKF(Eigen::Vector3d position)
+LinearKF::LinearKF(Eigen::Vector3d position, const MotionModelConfig& config)
 {
-    // Tunable Params
-    Eigen::VectorXd sigma_squared_state(6);
-    sigma_squared_state<< 100, 100, 100, 20, 20, 5; // sigma squared for x, y, z, vx, vy, vz
-    Eigen::VectorXd sigma_squared_measurement(3);
-    sigma_squared_measurement<< 0.1, 0.1, 0.1; // sigma squared for x, y, z
-    Eigen::VectorXd sigma_squared_process(6);
-    sigma_squared_process << 1, 1, 1, 1, 1, 1;
+    // Tunable params from config (diagonals): state = [x, y, z, vx, vy, vz], measurement = [x, y, z]
+    Eigen::VectorXd sigma_squared_state =
+        Eigen::Map<const Eigen::VectorXd>(config.initial_state_variance.data(), config.initial_state_variance.size());
+    Eigen::VectorXd sigma_squared_measurement =
+        Eigen::Map<const Eigen::VectorXd>(config.measurement_noise_variance.data(), config.measurement_noise_variance.size());
+    Eigen::VectorXd sigma_squared_process =
+        Eigen::Map<const Eigen::VectorXd>(config.process_noise_variance.data(), config.process_noise_variance.size());
 
     // Kalman Filter Matrices Initialization
     x_ = Eigen::VectorXd::Zero(6);

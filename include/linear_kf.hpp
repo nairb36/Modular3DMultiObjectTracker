@@ -19,7 +19,7 @@ class LinearKF: public MotionModel
 
     
     public:
-    LinearKF(Eigen::Vector3d);
+    LinearKF(Eigen::Vector3d position, const MotionModelConfig& config);
     Eigen::Vector3d get_position() const;
     Eigen::MatrixXd get_covariance() const;
     Innovation compute_innovation(const Eigen::VectorXd& z) const;

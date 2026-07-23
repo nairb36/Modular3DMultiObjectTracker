@@ -29,14 +29,19 @@ struct TrackerConfig
     AssociatorConfig associator_config;
     int max_consecutive_misses = 5;
 
-    static TrackerConfig from_json(const nlohmann::json& j)
+    // config_dir is the directory of the top-level MOT config file;
+    // all "params" paths inside the config resolve relative to it.
+    static TrackerConfig from_json(const nlohmann::json& j, const std::string& config_dir)
     {
         TrackerConfig cfg;
-        cfg.detector_config = DetectorConfig::from_json(j["detector"]);
-        cfg.motion_model_config = MotionModelConfig::from_json(j["motion_model"]);
-        cfg.cost_function_config = CostFunctionConfig::from_json(j["cost_function"]);
-        cfg.associator_config = AssociatorConfig::from_json(j["associator"]);
-        cfg.max_consecutive_misses = j["track_management"]["max_consecutive_misses"].get<int>();
+        cfg.detector_config = DetectorConfig::from_json(j["detector"], config_dir);
+        cfg.motion_model_config = MotionModelConfig::from_json(j["motion_model"], config_dir);
+        cfg.cost_function_config = CostFunctionConfig::from_json(j["cost_function"], config_dir);
+        cfg.associator_config = AssociatorConfig::from_json(j["associator"], config_dir);
+
+        std::ifstream params_file(config_dir + "/" + j["track_management"]["params"].get<std::string>());
+        nlohmann::json params = nlohmann::json::parse(params_file);
+        cfg.max_consecutive_misses = params["max_consecutive_misses"].get<int>();
         return cfg;
     }
 };
