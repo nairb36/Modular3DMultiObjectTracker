@@ -9,6 +9,7 @@
 #include "Hungarian.h"
 #include "cost_function.hpp"
 #include <limits>
+#include <fstream>
 #include <nlohmann/json.hpp>
 
 struct AssociatorConfig
@@ -16,11 +17,13 @@ struct AssociatorConfig
     double motion_feasibility_gate = 5.0;
     double mahalanobis_gate = 9.21;
 
-    static AssociatorConfig from_json(const nlohmann::json& j)
+    static AssociatorConfig from_json(const nlohmann::json& j, const std::string& config_dir)
     {
         AssociatorConfig cfg;
-        cfg.motion_feasibility_gate = j["motion_feasibility_gate"].get<double>();
-        cfg.mahalanobis_gate = j["mahalanobis_gate"].get<double>();
+        std::ifstream params_file(config_dir + "/" + j["params"].get<std::string>());
+        nlohmann::json params = nlohmann::json::parse(params_file);
+        cfg.motion_feasibility_gate = params["motion_feasibility_gate"].get<double>();
+        cfg.mahalanobis_gate = params["mahalanobis_gate"].get<double>();
         return cfg;
     }
 };

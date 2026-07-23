@@ -5,6 +5,7 @@
 #include "gt_detector.hpp"
 #include "pointpillars_detector.hpp"
 #include "linear_kf.hpp"
+#include "ukf.hpp"
 
 #include <iostream>
 #include <string>
@@ -19,13 +20,16 @@ namespace fs = std::filesystem;
 
 int main()
 {
-    std::string config_path = "../configs/MOT_v2.json";
+    std::string config_path = "../configs/MOT_v3.5.json";
     std::ifstream config_file(config_path);
     nlohmann::json config = nlohmann::json::parse(config_file);
 
+    // "params" paths inside the config resolve relative to the config file's directory
+    std::string config_dir = fs::path(config_path).parent_path().string();
+
     std::string scene_dir = config["data"]["scene_dir"];
     std::string detections_dir = config["data"]["detections_dir"];
-    TrackerConfig tracker_config = TrackerConfig::from_json(config);
+    TrackerConfig tracker_config = TrackerConfig::from_json(config, config_dir);
 
     // Create timestamped run folder
     auto now = std::chrono::system_clock::now();
@@ -68,13 +72,23 @@ int main()
             detector = std::make_unique<PointPillarsDetector>(tracker_config.detector_config, detections_file);
         }
 
-        // Create motion model factory
+        // Create motion model factory.
+        // Params were parsed once in TrackerConfig::from_json; the lambda captures them
+        // by value so per-track construction does no file I/O.
         std::function<std::unique_ptr<MotionModel>(Eigen::Vector3d)> motion_model_factory;
-        if (tracker_config.motion_model_config.type == "ConstVelocity")
+        MotionModelConfig motion_model_config = tracker_config.motion_model_config;
+        if (motion_model_config.type == "ConstVelocity")
         {
-            motion_model_factory = [](Eigen::Vector3d position)
+            motion_model_factory = [motion_model_config](Eigen::Vector3d position)
             {
-                return std::make_unique<LinearKF>(position);
+                return std::make_unique<LinearKF>(position, motion_model_config);
+            };
+        }
+        else if (motion_model_config.type == "CTRV")
+        {
+            motion_model_factory = [motion_model_config](Eigen::Vector3d position)
+            {
+                return std::make_unique<UKF>(position, motion_model_config);
             };
         }
 

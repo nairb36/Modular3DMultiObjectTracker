@@ -65,17 +65,15 @@ Gating logic lives in the Associator, separate from cost computation. Gating det
 
 ### Config-Driven Workflow
 
-All tunable parameters are externalized to a JSON configuration file. The tracker binary reads its entire setup from config at startup — no recompilation needed to experiment with different parameter sets.
+All tunable parameters are externalized to JSON — no recompilation needed to experiment with different parameter sets. Configuration is split into two levels:
 
-**Configurable parameters include:**
-- Detector type and data source
-- Motion model type
-- Cost function types and their relative weights
-- Distance gate for cost normalization
-- Association gating thresholds
-- Track deletion policy (max consecutive misses)
+**Top-level MOT config** (`configs/MOT_*.json`) — declares *what* runs: component types (`"PointPillars"`, `"CTRV"`), cost function types and weights, data paths, and a `params` path for each section pointing to its parameter file.
 
-Each component defines its own **config struct** with sensible defaults. The top-level `TrackerConfig` composes all sub-configs, providing a single entry point for configuration while maintaining clear ownership of parameters.
+**Component param files** (`configs/params/`) — hold the numerical tuning values for each component. Each file is scoped to one component, so different configs can share param files or swap them independently.
+
+This separation keeps high-level pipeline decisions readable at a glance while making tuning knobs easy to find and modify. All `params` paths resolve relative to the top-level config file's directory. Motion model params are parsed once at startup and captured by the factory lambda — no file I/O per track.
+
+Each component defines its own **config struct** with a `from_json` method. The top-level `TrackerConfig` composes all sub-configs, providing a single entry point for configuration while maintaining clear ownership of parameters.
 
 ---
 
@@ -120,6 +118,27 @@ Each component defines its own **config struct** with sensible defaults. The top
 
 ---
 
+## v3 Features
+
+### Motion Model
+- **CTRV + Unscented Kalman Filter** — replaces the constant-velocity LinearKF with a Constant Turn Rate and Velocity model driven by an UKF
+- 6D state vector: `[x, y, z, v, yaw, yaw_d]`; augmented state `[x, y, z, v, yaw, yaw_d, nu_a, nu_yaw_dd]` for sigma point generation
+- Measurement vector unchanged: `[x, y, z]` — linear update is sufficient since measurements are in Cartesian space
+- Yaw is updated from the detector heading with a π/2 flip guard to handle heading ambiguity
+- Near-zero turn rate singularity handled in sigma point propagation via straight-line fallback (`|yaw_d| < 1e-4`)
+
+### Track Score
+- **Running-mean tracking score** — replaces the frozen birth confidence with a score that evolves over the track's lifetime
+  - On match: `score = (score × hits + detection_confidence) / (hits + 1)`
+  - On miss: `score = (score × hits) / (hits + 1)`
+- Score naturally rises for confirmed tracks and decays toward zero for coasting or clutter tracks
+- Directly improves AMOTA by giving the recall-threshold sweep a meaningful gradient to exploit
+
+### Detection
+- **SECOND precomputed detections** added alongside PointPillars — same JSON schema, independent score threshold
+
+---
+
 ## Project Structure
 
 ```
@@ -134,6 +153,7 @@ Project_MOT/
 │   ├── pointpillars_detector.hpp     #   PointPillars precomputed detector implementation
 │   ├── motion_model.hpp              #   Abstract motion model interface + Innovation struct + MotionModelConfig
 │   ├── linear_kf.hpp                 #   Linear Kalman Filter implementation
+│   ├── ukf.hpp                       #   Unscented Kalman Filter (CTRV) implementation
 │   ├── cost_function.hpp             #   Cost computation + CostFunctionConfig
 │   ├── associator.hpp                #   Track-detection association + AssociatorConfig
 │   └── tracker.hpp                   #   Pipeline orchestrator + TrackerConfig
@@ -142,8 +162,9 @@ Project_MOT/
 │   ├── tracker.cpp                   #   Tracker pipeline implementation
 │   ├── track.cpp                     #   Track constructor
 │   ├── gt_detector.cpp               #   Ground-truth detector (reads Frame annotations)
-│   ├── pointpillars_detector.cpp     #   PointPillars detector (reads precomputed detections)
+│   ├── pointpillars_detector.cpp     #   PointPillars/SECOND detector (reads precomputed detections)
 │   ├── linear_kf.cpp                 #   Kalman Filter predict/update + innovation computation
+│   ├── ukf.cpp                       #   UKF predict/update + innovation computation
 │   ├── cost_function.cpp             #   Distance and IoU cost implementations
 │   └── associator.cpp                #   Cost matrix, gating, and Hungarian matching
 ├── scripts/                          # Python utilities
@@ -153,11 +174,24 @@ Project_MOT/
 │   ├── check_nuscenes.py             #   Verify nuScenes dataset mount
 │   └── evaluate.py                   #   Evaluate tracking results via nuScenes devkit
 ├── configs/
-│   ├── MOT_v1.json                   #   v1 configuration (GT detections)
-│   └── MOT_v2.json                   #   v2 configuration (PointPillars detections)
+│   ├── MOT_v1.json                   #   v1 configuration (GT detections + LinearKF)
+│   ├── MOT_v2.json                   #   v2 configuration (PointPillars detections + LinearKF)
+│   ├── MOT_v3.json                   #   v3 configuration (PointPillars detections + CTRV/UKF)
+│   ├── MOT_v3.5.json                 #   v3.5 configuration (SECOND detections + CTRV/UKF)
+│   └── params/                       #   Component-specific parameter files
+│       ├── detector_gt.json          #     GT detector params (tracked categories)
+│       ├── detector_pointpillars.json#     PointPillars params (categories, score threshold)
+│       ├── detector_second.json      #     SECOND params (categories, score threshold)
+│       ├── kf_const_velocity.json    #     LinearKF noise matrices (P, Q, R diagonals)
+│       ├── ukf_ctrv.json             #     UKF/CTRV noise matrices (P, Q, R diagonals)
+│       ├── cost_default.json         #     Cost function params (distance gate)
+│       ├── associator_default.json   #     Associator params (feasibility gate, Mahalanobis gate)
+│       └── track_management.json     #     Track lifecycle params (max consecutive misses)
 ├── models/
-│   └── pointpillars/
-│       └── precomputed_detections/   #   Per-scene PointPillars detection JSON files
+│   ├── pointpillars/
+│   │   └── precomputed_detections/   #   Per-scene PointPillars detection JSON files
+│   └── second/
+│       └── precomputed_detections/   #   Per-scene SECOND detection JSON files
 ├── results/
 │   ├── scenes/                       #   Exported scene JSON files (input to tracker)
 │   ├── gt/                           #   GT detection files (dataset-agnostic format)
@@ -188,7 +222,7 @@ make
 ./mot_tracker
 ```
 
-The tracker reads its configuration from `../configs/MOT_v2.json` by default. To run with ground-truth detections, change the config path in `main.cpp` to `../configs/MOT_v1.json`.
+The tracker reads its configuration from `../configs/MOT_v3.5.json` by default (SECOND detections + CTRV/UKF). To switch configurations, change the `config_path` variable in `main.cpp`.
 
 ---
 

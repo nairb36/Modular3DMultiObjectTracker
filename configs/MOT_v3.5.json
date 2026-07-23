@@ -1,0 +1,30 @@
+{
+    "data": {
+        "scene_dir": "../results/scenes",
+        "detections_dir": "../models/second/precomputed_detections"
+    },
+
+    "detector": {
+        "type": "PointPillars",
+        "params": "params/detector_second.json"
+    },
+
+    "motion_model": {
+        "type": "CTRV",
+        "params": "params/ukf_ctrv.json"
+    },
+
+    "cost_function": {
+        "types": ["distance", "iou"],
+        "weights": [0.5, 0.5],
+        "params": "params/cost_default.json"
+    },
+
+    "associator": {
+        "params": "params/associator_default.json"
+    },
+
+    "track_management": {
+        "params": "params/track_management.json"
+    }
+}

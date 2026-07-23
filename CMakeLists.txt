@@ -15,6 +15,7 @@ add_executable(mot_tracker
     src/pointpillars_detector.cpp
     src/associator.cpp
     src/linear_kf.cpp
+    src/ukf.cpp
     src/track.cpp
     src/cost_function.cpp
     third_party/hungarian-algorithm-cpp/Hungarian.cpp

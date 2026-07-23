@@ -21,7 +21,7 @@
 
     "associator": {
         "motion_feasibility_gate": 15.0,
-        "mahalanobis_gate": 7.82
+        "mahalanobis_gate": 5.99
     },
 
     "track_management": {

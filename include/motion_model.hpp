@@ -6,16 +6,28 @@
 
 #include <Eigen/Dense>
 #include <string>
+#include <vector>
+#include <fstream>
 #include <nlohmann/json.hpp>
 
 struct MotionModelConfig
 {
     std::string type;
+    // Diagonals of P, Q, R. Lengths depend on the motion model's state layout.
+    std::vector<double> initial_state_variance;
+    std::vector<double> process_noise_variance;
+    std::vector<double> measurement_noise_variance;
 
-    static MotionModelConfig from_json(const nlohmann::json& j)
+    static MotionModelConfig from_json(const nlohmann::json& j, const std::string& config_dir)
     {
         MotionModelConfig cfg;
         cfg.type = j["type"].get<std::string>();
+
+        std::ifstream params_file(config_dir + "/" + j["params"].get<std::string>());
+        nlohmann::json params = nlohmann::json::parse(params_file);
+        cfg.initial_state_variance = params["initial_state_variance"].get<std::vector<double>>();
+        cfg.process_noise_variance = params["process_noise_variance"].get<std::vector<double>>();
+        cfg.measurement_noise_variance = params["measurement_noise_variance"].get<std::vector<double>>();
         return cfg;
     }
 };
