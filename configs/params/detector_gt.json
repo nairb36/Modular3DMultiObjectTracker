@@ -1,3 +1,4 @@
 {
-    "tracked_categories": ["vehicle", "human"]
+    "tracked_categories": ["vehicle", "human"],
+    "score_threshold": 0.2
 }

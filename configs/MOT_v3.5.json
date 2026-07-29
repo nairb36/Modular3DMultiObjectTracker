@@ -10,8 +10,8 @@
     },
 
     "motion_model": {
-        "type": "CTRV",
-        "params": "params/ukf_ctrv.json"
+        "type": "ConstVelocity",
+        "params": "params/kf_const_velocity.json"
     },
 
     "cost_function": {

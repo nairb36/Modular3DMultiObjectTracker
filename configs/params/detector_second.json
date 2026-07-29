@@ -1,4 +1,4 @@
 {
     "tracked_categories": ["vehicle", "human"],
-    "score_threshold": 0.2
+    "score_threshold": 0.4
 }
