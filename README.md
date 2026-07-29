@@ -10,6 +10,8 @@ Designed from the ground up for **extensibility** — new detectors, motion mode
 
 ![Demo](docs/MOT_V1.gif)
 
+*3D multi-object tracking on a nuScenes scene — synchronized camera and LiDAR views showing ground-truth boxes alongside tracker output boxes with track IDs. Rendered with [SensorLens](https://github.com/nairb36/SensorLens).*
+
 ---
 
 ## Architecture
